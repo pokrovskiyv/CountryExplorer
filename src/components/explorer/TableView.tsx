@@ -1,5 +1,7 @@
 import { useState, useMemo } from "react";
+import { Download } from "lucide-react";
 import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import { exportTableAsCSV } from "@/lib/export-csv";
 
 interface TableViewProps {
   onRegionSelect: (name: string) => void;
@@ -36,6 +38,15 @@ const TableView = ({ onRegionSelect }: TableViewProps) => {
 
   return (
     <div className="p-4 overflow-auto h-full">
+      <div className="flex justify-end mb-3">
+        <button
+          onClick={() => exportTableAsCSV()}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-[hsl(230,25%,13%)] border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors"
+        >
+          <Download className="w-3.5 h-3.5" />
+          Export CSV
+        </button>
+      </div>
       <table className="w-full border-collapse text-xs">
         <thead>
           <tr>

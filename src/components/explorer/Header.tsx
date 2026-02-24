@@ -1,11 +1,13 @@
 import { Link } from "react-router-dom";
-import { Crosshair } from "lucide-react";
+import { Crosshair, FileDown } from "lucide-react";
+import { exportViewAsPDF } from "@/lib/export-pdf";
 
 export type ViewType = "map" | "table" | "radar";
 
 interface HeaderProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
+  contentRef?: React.RefObject<HTMLDivElement>;
 }
 
 const GlobeIcon = () => (
@@ -21,7 +23,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
   radar: "Radar",
 };
 
-const Header = ({ activeView, onViewChange }: HeaderProps) => (
+const Header = ({ activeView, onViewChange, contentRef }: HeaderProps) => (
   <div className="h-14 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
     <Link to="/" className="flex items-center gap-2 text-lg font-bold text-foreground">
       <GlobeIcon />
@@ -48,7 +50,16 @@ const Header = ({ activeView, onViewChange }: HeaderProps) => (
         </button>
       ))}
     </div>
-    <select className="ml-auto bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]">
+    {contentRef?.current && (
+      <button
+        onClick={() => exportViewAsPDF(contentRef.current!)}
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-[hsl(230,25%,13%)] border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors ml-auto"
+      >
+        <FileDown className="w-3.5 h-3.5" />
+        Export PDF
+      </button>
+    )}
+    <select className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}>
       <option>🇬🇧 United Kingdom</option>
       <option disabled>🇩🇪 Germany (coming soon)</option>
       <option disabled>🇫🇷 France (coming soon)</option>
