@@ -1,12 +1,15 @@
 import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import { aggregateCitiesForRegion } from "@/lib/city-aggregation";
+import CityBreakdown from "@/components/explorer/CityBreakdown";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
 
 interface RegionPanelProps {
   region: string | null;
   onClose: () => void;
+  selectedBrands: ReadonlySet<string>;
 }
 
-const RegionPanel = ({ region, onClose }: RegionPanelProps) => {
+const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
   if (!region) {
     return (
       <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
@@ -30,6 +33,8 @@ const RegionPanel = ({ region, onClose }: RegionPanelProps) => {
   const maxBrand = Math.max(...brands.map((b) => data[b] || 0));
 
   const chartData = brands.map((b) => ({ name: b, value: data[b] || 0, color: BRANDS[b].color }));
+
+  const cities = aggregateCitiesForRegion(region, selectedBrands);
 
   return (
     <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
@@ -88,6 +93,12 @@ const RegionPanel = ({ region, onClose }: RegionPanelProps) => {
               />
             </PieChart>
           </ResponsiveContainer>
+        </div>
+
+        {/* City breakdown */}
+        <div className="mt-4">
+          <h4 className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2.5">Cities</h4>
+          <CityBreakdown cities={cities} selectedBrands={selectedBrands} />
         </div>
       </div>
     </div>

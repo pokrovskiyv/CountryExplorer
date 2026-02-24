@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import Header from "@/components/explorer/Header";
 import type { ViewType } from "@/components/explorer/Header";
 import Sidebar from "@/components/explorer/Sidebar";
@@ -9,10 +9,11 @@ import RadarSidebar from "@/components/radar/RadarSidebar";
 import RadarMapView from "@/components/radar/RadarMapView";
 import RadarPanel from "@/components/radar/RadarPanel";
 import { useExpansionRadar } from "@/hooks/useExpansionRadar";
+import { useBrandGroups } from "@/hooks/useBrandGroups";
 import { BRANDS } from "@/data/uk-data";
 
 type Metric = "total" | "density" | "share";
-type Display = "choropleth" | "points" | "both";
+type Display = "choropleth" | "points" | "both" | "heatmap";
 
 const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar"]);
 
@@ -28,6 +29,7 @@ const Explorer = () => {
   const [display, setDisplay] = useState<Display>("choropleth");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [topoData, setTopoData] = useState<any>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     window.location.hash = activeView;
@@ -40,6 +42,11 @@ const Explorer = () => {
   }, []);
 
   const radar = useExpansionRadar(activeView === "radar");
+  const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups();
+
+  const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
+    setSelectedBrands(new Set(brands));
+  }, []);
 
   // Load TopoJSON from prototype HTML
   useEffect(() => {
@@ -86,8 +93,8 @@ const Explorer = () => {
 
   return (
     <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
-      <Header activeView={activeView} onViewChange={setActiveView} />
-      <div className="flex flex-1 overflow-hidden">
+      <Header activeView={activeView} onViewChange={setActiveView} contentRef={contentRef} />
+      <div ref={contentRef} className="flex flex-1 overflow-hidden">
         {activeView === "radar" ? (
           <>
             <RadarSidebar
@@ -127,6 +134,10 @@ const Explorer = () => {
               onMetricChange={setMetric}
               display={display}
               onDisplayChange={setDisplay}
+              brandGroups={brandGroups}
+              onApplyBrandGroup={handleApplyBrandGroup}
+              onCreateBrandGroup={createBrandGroup}
+              onDeleteBrandGroup={deleteBrandGroup}
             />
             {activeView === "map" ? (
               <>
@@ -138,7 +149,7 @@ const Explorer = () => {
                   onRegionSelect={handleRegionSelect}
                   topoData={topoData}
                 />
-                <RegionPanel region={selectedRegion} onClose={handleClosePanel} />
+                <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
               </>
             ) : (
               <div className="flex-1 overflow-auto">
