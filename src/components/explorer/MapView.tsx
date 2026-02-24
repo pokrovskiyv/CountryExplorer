@@ -16,6 +16,20 @@ interface MapViewProps {
   topoData: any;
 }
 
+function getMarkerRadius(zoom: number): number {
+  if (zoom <= 6) return 2;
+  if (zoom <= 8) return 3;
+  if (zoom <= 10) return 4;
+  if (zoom <= 12) return 5;
+  return 6;
+}
+
+function getMarkerOpacity(zoom: number): number {
+  if (zoom <= 6) return 0.65;
+  if (zoom <= 8) return 0.75;
+  return 0.85;
+}
+
 const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
@@ -59,6 +73,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     const map = L.map(containerRef.current, {
       zoomControl: true,
       attributionControl: false,
+      preferCanvas: true,
     }).setView([54.5, -2], 6);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png", {
@@ -74,7 +89,15 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
     mapRef.current = map;
 
+    const hideTooltip = () => {
+      if (tooltipRef.current) tooltipRef.current.style.display = "none";
+    };
+    map.on("zoomstart", hideTooltip);
+    map.on("movestart", hideTooltip);
+
     return () => {
+      map.off("zoomstart", hideTooltip);
+      map.off("movestart", hideTooltip);
       map.remove();
       mapRef.current = null;
     };
@@ -130,6 +153,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
               tooltipRef.current.style.top = (e.originalEvent.clientY - mapRect.top - 12) + "px";
             }
           },
+          mousemove: (e) => {
+            if (tooltipRef.current && containerRef.current) {
+              const mapRect = containerRef.current.getBoundingClientRect();
+              tooltipRef.current.style.left = (e.originalEvent.clientX - mapRect.left + 12) + "px";
+              tooltipRef.current.style.top = (e.originalEvent.clientY - mapRect.top - 12) + "px";
+            }
+          },
           mouseout: (e) => {
             layer.resetStyle(e.target);
             if (selectedRegion && feature.properties.name === selectedRegion) {
@@ -167,18 +197,47 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     pointLayersRef.current = {};
 
     if (display === "points" || display === "both") {
-      selectedBrands.forEach((brand) => {
+      const zoom = map.getZoom();
+      const radius = getMarkerRadius(zoom);
+      const opacity = getMarkerOpacity(zoom);
+
+      const sortedBrands = [...selectedBrands].sort(
+        (a, b) => (BRAND_POINTS[a] || []).length - (BRAND_POINTS[b] || []).length
+      );
+
+      const allMarkers: L.CircleMarker[] = [];
+
+      sortedBrands.forEach((brand) => {
         const pts = BRAND_POINTS[brand] || [];
-        const markers = pts.map((p) =>
-          L.circleMarker([p[0], p[1]], {
-            radius: 4,
+        const markers = pts.map((p) => {
+          const marker = L.circleMarker([p[0], p[1]], {
+            radius,
             fillColor: BRANDS[brand].color,
-            color: "transparent",
-            fillOpacity: 0.85,
-          }).bindPopup(`<b>${brand}</b><br>${p[2]}<br>${p[3]} ${p[4]}`)
-        );
+            color: "rgba(15,17,30,0.5)",
+            weight: 1,
+            fillOpacity: opacity,
+          }).bindPopup(`<b>${brand}</b><br>${p[2]}<br>${p[3]} ${p[4]}`);
+          allMarkers.push(marker);
+          return marker;
+        });
         pointLayersRef.current[brand] = L.layerGroup(markers).addTo(map);
       });
+
+      const onZoomEnd = () => {
+        const z = map.getZoom();
+        const r = getMarkerRadius(z);
+        const o = getMarkerOpacity(z);
+        allMarkers.forEach((m) => {
+          m.setRadius(r);
+          m.setStyle({ fillOpacity: o });
+        });
+      };
+
+      map.on("zoomend", onZoomEnd);
+
+      return () => {
+        map.off("zoomend", onZoomEnd);
+      };
     }
   }, [selectedBrands, display]);
 

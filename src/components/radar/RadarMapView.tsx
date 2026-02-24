@@ -59,7 +59,15 @@ const RadarMapView = ({
 
     mapRef.current = map;
 
+    const hideTooltip = () => {
+      if (tooltipRef.current) tooltipRef.current.style.display = "none";
+    };
+    map.on("zoomstart", hideTooltip);
+    map.on("movestart", hideTooltip);
+
     return () => {
+      map.off("zoomstart", hideTooltip);
+      map.off("movestart", hideTooltip);
       map.remove();
       mapRef.current = null;
     };
@@ -128,6 +136,13 @@ const RadarMapView = ({
               tooltipRef.current.innerHTML = html;
               tooltipRef.current.style.display = "block";
 
+              const mapRect = containerRef.current.getBoundingClientRect();
+              tooltipRef.current.style.left = (e.originalEvent.clientX - mapRect.left + 12) + "px";
+              tooltipRef.current.style.top = (e.originalEvent.clientY - mapRect.top - 12) + "px";
+            }
+          },
+          mousemove: (e) => {
+            if (tooltipRef.current && containerRef.current) {
               const mapRect = containerRef.current.getBoundingClientRect();
               tooltipRef.current.style.left = (e.originalEvent.clientX - mapRect.left + 12) + "px";
               tooltipRef.current.style.top = (e.originalEvent.clientY - mapRect.top - 12) + "px";
@@ -218,21 +233,20 @@ const RadarMapView = ({
       {/* Legend */}
       <div className="absolute bottom-6 left-6 bg-[hsl(230,25%,10%)]/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
         <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">
-          Opportunity score
+          Expansion opportunity
         </div>
-        <div className="flex gap-0.5">
-          {[0, 0.2, 0.4, 0.6, 0.8, 1.0].map((t) => (
-            <div
-              key={t}
-              className="w-6 h-3.5 rounded-sm first:rounded-l last:rounded-r"
-              style={{ background: interpolateRadarColor(t) }}
-            />
-          ))}
-        </div>
-        <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-          <span>Cold</span>
-          <span>Moderate</span>
-          <span>Hot</span>
+
+        {/* Continuous gradient bar */}
+        <div
+          className="h-3 rounded-full"
+          style={{
+            background: `linear-gradient(to right, rgb(51,65,85) 0%, rgb(20,148,132) 25%, rgb(245,158,11) 50%, rgb(239,68,68) 75%, rgb(236,72,153) 100%)`,
+          }}
+        />
+
+        <div className="flex justify-between mt-1">
+          <span className="text-[10px] tabular-nums text-muted-foreground">0</span>
+          <span className="text-[10px] tabular-nums text-muted-foreground">100</span>
         </div>
       </div>
 

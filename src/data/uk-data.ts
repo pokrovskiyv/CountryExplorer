@@ -45,45 +45,8 @@ export const REGION_COUNTS: Record<string, Record<string, number>> = {
   "Northern Ireland": { Subway: 59, McDonalds: 50, Dominos: 4, KFC: 54, Nandos: 9, PapaJohns: 5, total: 181 },
 };
 
-// Sample brand point coordinates [lat, lng, address, city, postcode]
-export const BRAND_POINTS: Record<string, [number, number, string, string, string][]> = {
-  Subway: [
-    [51.5074, -0.1278, "1 High St", "London", "EC1A"],
-    [53.4808, -2.2426, "2 Market St", "Manchester", "M1 1"],
-    [52.4862, -1.8904, "3 New St", "Birmingham", "B1 1"],
-    [55.9533, -3.1883, "4 Princes St", "Edinburgh", "EH1"],
-    [51.4545, -2.5879, "5 Park St", "Bristol", "BS1"],
-    [53.8008, -1.5491, "6 Briggate", "Leeds", "LS1"],
-  ],
-  McDonalds: [
-    [51.5155, -0.1419, "10 Oxford St", "London", "W1D"],
-    [53.4723, -2.2398, "11 Piccadilly", "Manchester", "M1 2"],
-    [52.4796, -1.9026, "12 Bull Ring", "Birmingham", "B5 4"],
-    [55.9412, -3.1905, "13 South Bridge", "Edinburgh", "EH1"],
-    [53.3811, -1.4701, "14 Fargate", "Sheffield", "S1 2"],
-  ],
-  Dominos: [
-    [51.5225, -0.1302, "20 Euston Rd", "London", "NW1"],
-    [53.4631, -2.2494, "21 Oxford Rd", "Manchester", "M13"],
-    [52.4539, -1.7481, "22 Coventry Rd", "Birmingham", "B26"],
-    [55.8642, -4.2518, "23 Sauchiehall St", "Glasgow", "G2 3"],
-  ],
-  KFC: [
-    [51.5090, -0.1260, "30 Strand", "London", "WC2R"],
-    [53.4775, -2.2316, "31 Portland St", "Manchester", "M1 3"],
-    [52.4862, -1.8938, "32 Corp St", "Birmingham", "B4 6"],
-    [51.4519, -2.5966, "33 Union St", "Bristol", "BS1"],
-  ],
-  Nandos: [
-    [51.5117, -0.1185, "40 Cheapside", "London", "EC2V"],
-    [53.4740, -2.2528, "41 Deansgate", "Manchester", "M3 4"],
-    [52.4800, -1.8960, "42 New St", "Birmingham", "B2 4"],
-  ],
-  PapaJohns: [
-    [51.5200, -0.1400, "50 Tottenham Ct Rd", "London", "W1T"],
-    [53.4700, -2.2400, "51 Whitworth St", "Manchester", "M1 5"],
-  ],
-};
+// Brand point coordinates — generated data distributed across UK cities
+export { BRAND_POINTS } from "./brand-points";
 
 // Region centroids for map labels [lat, lng]
 export const REGION_CENTROIDS: Record<string, [number, number]> = {
