@@ -45,7 +45,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
               className="w-3 h-3 rounded-full shrink-0"
               style={{
                 background: BRANDS[b].color,
-                boxShadow: selectedBrands.has(b) ? '0 0 0 2px rgba(255,255,255,0.3)' : 'none',
+                boxShadow: selectedBrands.has(b) ? '0 0 0 2px rgba(255,255,255,0.5)' : 'none',
               }}
             />
             <span className="text-[13px] font-medium flex-1">{b}</span>

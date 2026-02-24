@@ -38,7 +38,7 @@ const OpportunityChart = ({ breakdown, tier }: OpportunityChartProps) => {
       <ResponsiveContainer width="100%" height={180}>
         <RadarChart data={data} cx="50%" cy="50%" outerRadius="70%">
           <PolarGrid
-            stroke="hsl(230,25%,20%)"
+            stroke="hsl(230,25%,25%)"
             strokeDasharray="3 3"
           />
           <PolarAngleAxis

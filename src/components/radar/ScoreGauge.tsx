@@ -28,7 +28,7 @@ const ScoreGauge = ({ score, tier, size = 120 }: ScoreGaugeProps) => {
         <path
           d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
           fill="none"
-          stroke="hsl(230,25%,15%)"
+          stroke="hsl(230,25%,20%)"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />

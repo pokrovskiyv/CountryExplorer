@@ -159,8 +159,8 @@ const RadarMapView = ({
       const icon = L.divIcon({
         className: "radar-score-label",
         html: `<div style="
-          background: hsl(230,25%,8%);
-          border: 1.5px solid ${tierColor}60;
+          background: hsl(230,25%,12%);
+          border: 1.5px solid ${tierColor}90;
           border-radius: 6px;
           padding: 2px 6px;
           font-size: 11px;

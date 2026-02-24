@@ -51,19 +51,19 @@ const TableView = ({ onRegionSelect }: TableViewProps) => {
         <tbody>
           {rows.map((r) => (
             <tr key={r.name} className="hover:bg-[hsl(230,25%,13%)]/50">
-              <td className="px-3 py-2 border-b border-[hsl(230,25%,13%)]">
+              <td className="px-3 py-2 border-b border-[hsl(230,25%,16%)]">
                 <button onClick={() => onRegionSelect(r.name)} className="text-blue-400 hover:underline">
                   {r.name}
                 </button>
               </td>
-              <td className="px-3 py-2 border-b border-[hsl(230,25%,13%)] tabular-nums">{r.total}</td>
-              <td className="px-3 py-2 border-b border-[hsl(230,25%,13%)] tabular-nums">{(r.pop * 1000).toLocaleString()}</td>
-              <td className="px-3 py-2 border-b border-[hsl(230,25%,13%)] tabular-nums">{r.density.toFixed(1)}</td>
+              <td className="px-3 py-2 border-b border-[hsl(230,25%,16%)] tabular-nums">{r.total}</td>
+              <td className="px-3 py-2 border-b border-[hsl(230,25%,16%)] tabular-nums">{(r.pop * 1000).toLocaleString()}</td>
+              <td className="px-3 py-2 border-b border-[hsl(230,25%,16%)] tabular-nums">{r.density.toFixed(1)}</td>
               {brands.map((b) => {
                 const count = (r as any)[b] || 0;
                 const pct = r.total > 0 ? ((count / r.total) * 100).toFixed(1) : "0";
                 return (
-                  <td key={b} className="px-3 py-2 border-b border-[hsl(230,25%,13%)] tabular-nums">
+                  <td key={b} className="px-3 py-2 border-b border-[hsl(230,25%,16%)] tabular-nums">
                     {count} <span className="text-muted-foreground text-[10px]">({pct}%)</span>
                   </td>
                 );

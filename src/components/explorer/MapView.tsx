@@ -100,7 +100,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         return {
           fillColor: interpolateColor(intensity),
           weight: 1.5,
-          color: "#2a2d3a",
+          color: "#3a3f52",
           fillOpacity: display === "points" ? 0.15 : 0.7,
         };
       },
@@ -171,10 +171,10 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         const pts = BRAND_POINTS[brand] || [];
         const markers = pts.map((p) =>
           L.circleMarker([p[0], p[1]], {
-            radius: 3,
+            radius: 4,
             fillColor: BRANDS[brand].color,
             color: "transparent",
-            fillOpacity: 0.7,
+            fillOpacity: 0.85,
           }).bindPopup(`<b>${brand}</b><br>${p[2]}<br>${p[3]} ${p[4]}`)
         );
         pointLayersRef.current[brand] = L.layerGroup(markers).addTo(map);
