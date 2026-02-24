@@ -1,11 +1,12 @@
 import { useEffect, useRef, useCallback } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "leaflet.heat";
 import * as topojson from "topojson-client";
 import { BRANDS, REGION_COUNTS, POPULATION, BRAND_POINTS, interpolateColor } from "@/data/uk-data";
 
 type Metric = "total" | "density" | "share";
-type Display = "choropleth" | "points" | "both";
+type Display = "choropleth" | "points" | "both" | "heatmap";
 
 interface MapViewProps {
   selectedBrands: Set<string>;
@@ -36,6 +37,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
   const pointLayersRef = useRef<Record<string, L.LayerGroup>>({});
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const heatLayerRef = useRef<L.Layer | null>(null);
 
   const getMetricValue = useCallback((props: any) => {
     if (metric === "total") {
@@ -124,7 +126,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
           fillColor: interpolateColor(intensity),
           weight: 1.5,
           color: "#3a3f52",
-          fillOpacity: display === "points" ? 0.15 : 0.7,
+          fillOpacity: (display === "points" || display === "heatmap") ? 0.15 : 0.7,
         };
       },
       onEachFeature: (feature, lyr) => {
@@ -241,6 +243,53 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     }
   }, [selectedBrands, display]);
 
+  // Update heatmap layer
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    if (heatLayerRef.current) {
+      map.removeLayer(heatLayerRef.current);
+      heatLayerRef.current = null;
+    }
+
+    if (display !== "heatmap") return;
+
+    const latlngs: [number, number][] = [];
+    selectedBrands.forEach((brand) => {
+      const pts = BRAND_POINTS[brand] || [];
+      pts.forEach((p) => {
+        latlngs.push([p[0], p[1]]);
+      });
+    });
+
+    if (latlngs.length === 0) return;
+
+    const heat = L.heatLayer(latlngs, {
+      radius: 25,
+      blur: 15,
+      maxZoom: 12,
+      minOpacity: 0.3,
+      gradient: {
+        0.2: "#1e3a8a",
+        0.4: "#3b82f6",
+        0.6: "#22d3ee",
+        0.8: "#facc15",
+        1.0: "#ef4444",
+      },
+    });
+
+    heat.addTo(map);
+    heatLayerRef.current = heat;
+
+    return () => {
+      if (heatLayerRef.current) {
+        map.removeLayer(heatLayerRef.current);
+        heatLayerRef.current = null;
+      }
+    };
+  }, [selectedBrands, display]);
+
   // Fit bounds on selected region
   useEffect(() => {
     const map = mapRef.current;
@@ -254,7 +303,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
   // Legend
   const maxMetric = getMaxMetric();
-  const legendLabel = metric === "total" ? "Total locations" : metric === "density" ? "Locations per 100k" : "Brand share %";
+  const legendLabel = display === "heatmap"
+    ? "Point density"
+    : metric === "total"
+      ? "Total locations"
+      : metric === "density"
+        ? "Locations per 100k"
+        : "Brand share %";
 
   return (
     <div className="flex-1 relative">
@@ -270,15 +325,31 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       {/* Legend */}
       <div className="absolute bottom-6 left-6 bg-[hsl(230,25%,10%)]/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
         <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">{legendLabel}</div>
-        <div className="flex gap-0.5">
-          {[0, 0.2, 0.4, 0.6, 0.8].map((t) => (
-            <div key={t} className="w-8 h-3.5 rounded-sm" style={{ background: interpolateColor(t) }} />
-          ))}
-        </div>
-        <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-          <span>0</span>
-          <span>{maxMetric.toFixed(metric === "total" ? 0 : 1)}</span>
-        </div>
+        {display === "heatmap" ? (
+          <>
+            <div className="flex gap-0.5">
+              {["#1e3a8a", "#3b82f6", "#22d3ee", "#facc15", "#ef4444"].map((color) => (
+                <div key={color} className="w-8 h-3.5 rounded-sm" style={{ background: color }} />
+              ))}
+            </div>
+            <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+              <span>Low</span>
+              <span>High</span>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex gap-0.5">
+              {[0, 0.2, 0.4, 0.6, 0.8].map((t) => (
+                <div key={t} className="w-8 h-3.5 rounded-sm" style={{ background: interpolateColor(t) }} />
+              ))}
+            </div>
+            <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+              <span>0</span>
+              <span>{maxMetric.toFixed(metric === "total" ? 0 : 1)}</span>
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

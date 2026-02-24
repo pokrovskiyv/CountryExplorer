@@ -1,7 +1,9 @@
 import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import BrandGroupManager from "@/components/explorer/BrandGroupManager";
+import type { BrandGroup } from "@/hooks/useBrandGroups";
 
 type Metric = "total" | "density" | "share";
-type Display = "choropleth" | "points" | "both";
+type Display = "choropleth" | "points" | "both" | "heatmap";
 
 interface SidebarProps {
   selectedBrands: Set<string>;
@@ -10,9 +12,13 @@ interface SidebarProps {
   onMetricChange: (m: Metric) => void;
   display: Display;
   onDisplayChange: (d: Display) => void;
+  brandGroups: readonly BrandGroup[];
+  onApplyBrandGroup: (brands: readonly string[]) => void;
+  onCreateBrandGroup: (name: string, brands: readonly string[]) => void;
+  onDeleteBrandGroup: (id: string) => void;
 }
 
-const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange }: SidebarProps) => {
+const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup }: SidebarProps) => {
   // Compute totals
   const totals: Record<string, number> = {};
   Object.keys(BRANDS).forEach((b) => {
@@ -30,6 +36,17 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
 
   return (
     <div className="w-80 bg-[hsl(230,25%,10%)] border-r border-border overflow-y-auto shrink-0">
+      {/* Brand groups */}
+      <div className="p-4 border-b border-border">
+        <BrandGroupManager
+          groups={brandGroups}
+          onApplyGroup={onApplyBrandGroup}
+          onCreateGroup={onCreateBrandGroup}
+          onDeleteGroup={onDeleteBrandGroup}
+          currentBrands={selectedBrands}
+        />
+      </div>
+
       {/* Brands */}
       <div className="p-4 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Brands</h3>
@@ -78,7 +95,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
       <div className="p-4 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Display</h3>
         <div className="flex gap-1 flex-wrap">
-          {([["choropleth", "Regions"], ["points", "Points"], ["both", "Both"]] as const).map(([d, label]) => (
+          {([["choropleth", "Regions"], ["points", "Points"], ["both", "Both"], ["heatmap", "Heatmap"]] as const).map(([d, label]) => (
             <button
               key={d}
               onClick={() => onDisplayChange(d)}
