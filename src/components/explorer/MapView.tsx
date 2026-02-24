@@ -89,6 +89,11 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       pane: "shadowPane",
     }).addTo(map);
 
+    // Custom pane for point markers — renders above region polygons
+    // so bringToFront() on regions never covers the points
+    map.createPane("pointsPane");
+    map.getPane("pointsPane")!.style.zIndex = "450";
+
     mapRef.current = map;
 
     const hideTooltip = () => {
@@ -218,6 +223,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
             color: "rgba(15,17,30,0.5)",
             weight: 1,
             fillOpacity: opacity,
+            pane: "pointsPane",
           }).bindPopup(`<b>${brand}</b><br>${p[2]}<br>${p[3]} ${p[4]}`);
           allMarkers.push(marker);
           return marker;
