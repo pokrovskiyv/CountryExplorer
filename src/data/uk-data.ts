@@ -85,6 +85,22 @@ export const BRAND_POINTS: Record<string, [number, number, string, string, strin
   ],
 };
 
+// Region centroids for map labels [lat, lng]
+export const REGION_CENTROIDS: Record<string, [number, number]> = {
+  "North East (England)": [55.0, -1.6],
+  "North West (England)": [54.0, -2.7],
+  "Yorkshire and The Humber": [53.8, -1.2],
+  "East Midlands (England)": [52.8, -1.0],
+  "West Midlands (England)": [52.5, -2.0],
+  "East (England)": [52.2, 0.5],
+  "London": [51.5, -0.12],
+  "South East (England)": [51.2, 0.0],
+  "South West (England)": [50.8, -3.2],
+  "Wales": [52.0, -3.7],
+  "Scotland": [56.8, -4.2],
+  "Northern Ireland": [54.6, -6.8],
+};
+
 // Color interpolation for choropleth
 export function interpolateColor(t: number): string {
   const colors = [

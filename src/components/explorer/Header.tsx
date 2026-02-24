@@ -1,8 +1,11 @@
 import { Link } from "react-router-dom";
+import { Crosshair } from "lucide-react";
+
+export type ViewType = "map" | "table" | "radar";
 
 interface HeaderProps {
-  activeView: "map" | "table";
-  onViewChange: (view: "map" | "table") => void;
+  activeView: ViewType;
+  onViewChange: (view: ViewType) => void;
 }
 
 const GlobeIcon = () => (
@@ -12,6 +15,12 @@ const GlobeIcon = () => (
   </svg>
 );
 
+const VIEW_LABELS: Record<ViewType, string> = {
+  map: "Map",
+  table: "Table",
+  radar: "Radar",
+};
+
 const Header = ({ activeView, onViewChange }: HeaderProps) => (
   <div className="h-14 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
     <Link to="/" className="flex items-center gap-2 text-lg font-bold text-foreground">
@@ -19,17 +28,23 @@ const Header = ({ activeView, onViewChange }: HeaderProps) => (
       Getplace
     </Link>
     <div className="flex gap-1 ml-8">
-      {(["map", "table"] as const).map((v) => (
+      {(["map", "table", "radar"] as const).map((v) => (
         <button
           key={v}
           onClick={() => onViewChange(v)}
-          className={`px-4 py-2 rounded-md text-[13px] font-medium transition-colors capitalize ${
+          className={`px-4 py-2 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
             activeView === v
               ? "bg-blue-600/10 text-blue-400"
               : "text-muted-foreground hover:bg-[hsl(230,25%,13%)] hover:text-slate-300"
           }`}
         >
-          {v}
+          {v === "radar" && <Crosshair className="w-3.5 h-3.5" />}
+          {VIEW_LABELS[v]}
+          {v === "radar" && (
+            <span className="text-[9px] bg-pink-500/20 text-pink-400 px-1.5 py-0.5 rounded-full font-bold uppercase leading-none ml-0.5">
+              New
+            </span>
+          )}
         </button>
       ))}
     </div>

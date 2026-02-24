@@ -120,6 +120,19 @@ All colors MUST be HSL.
   display: none !important;
 }
 
+/* Radar pulse animation for top opportunity regions */
+@keyframes radar-pulse {
+  0%, 100% { stroke-opacity: 0.6; }
+  50% { stroke-opacity: 1; filter: drop-shadow(0 0 8px rgba(236,72,153,0.5)); }
+}
+.radar-pulse {
+  animation: radar-pulse 2s ease-in-out infinite;
+}
+.radar-score-label {
+  background: transparent !important;
+  border: none !important;
+}
+
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

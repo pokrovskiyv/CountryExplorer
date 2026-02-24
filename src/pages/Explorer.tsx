@@ -1,21 +1,28 @@
 import { useState, useEffect, useCallback } from "react";
 import Header from "@/components/explorer/Header";
+import type { ViewType } from "@/components/explorer/Header";
 import Sidebar from "@/components/explorer/Sidebar";
 import MapView from "@/components/explorer/MapView";
 import RegionPanel from "@/components/explorer/RegionPanel";
 import TableView from "@/components/explorer/TableView";
+import RadarSidebar from "@/components/radar/RadarSidebar";
+import RadarMapView from "@/components/radar/RadarMapView";
+import RadarPanel from "@/components/radar/RadarPanel";
+import { useExpansionRadar } from "@/hooks/useExpansionRadar";
 import { BRANDS } from "@/data/uk-data";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both";
 
 const Explorer = () => {
-  const [activeView, setActiveView] = useState<"map" | "table">("map");
+  const [activeView, setActiveView] = useState<ViewType>("map");
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set(Object.keys(BRANDS)));
   const [metric, setMetric] = useState<Metric>("total");
   const [display, setDisplay] = useState<Display>("choropleth");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [topoData, setTopoData] = useState<any>(null);
+
+  const radar = useExpansionRadar(activeView === "radar");
 
   // Load TopoJSON from prototype HTML
   useEffect(() => {
@@ -52,34 +59,74 @@ const Explorer = () => {
     setSelectedRegion(null);
   }, []);
 
+  const handleRadarRegionSelect = useCallback((name: string) => {
+    radar.setSelectedRegion(name);
+  }, [radar.setSelectedRegion]);
+
+  const handleRadarClosePanel = useCallback(() => {
+    radar.setSelectedRegion(null);
+  }, [radar.setSelectedRegion]);
+
   return (
     <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
       <Header activeView={activeView} onViewChange={setActiveView} />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar
-          selectedBrands={selectedBrands}
-          onToggleBrand={handleToggleBrand}
-          metric={metric}
-          onMetricChange={setMetric}
-          display={display}
-          onDisplayChange={setDisplay}
-        />
-        {activeView === "map" ? (
+        {activeView === "radar" ? (
           <>
-            <MapView
-              selectedBrands={selectedBrands}
-              metric={metric}
-              display={display}
-              selectedRegion={selectedRegion}
-              onRegionSelect={handleRegionSelect}
-              topoData={topoData}
+            <RadarSidebar
+              targetBrand={radar.targetBrand}
+              onBrandChange={radar.setTargetBrand}
+              weights={radar.weights}
+              onWeightsChange={radar.setWeights}
+              onResetWeights={radar.resetWeights}
+              scores={radar.scores}
+              topOpportunities={radar.topOpportunities}
+              selectedRegion={radar.selectedRegion}
+              onSelectRegion={handleRadarRegionSelect}
             />
-            <RegionPanel region={selectedRegion} onClose={handleClosePanel} />
+            <RadarMapView
+              topoData={topoData}
+              scores={radar.scores}
+              selectedRegion={radar.selectedRegion}
+              onRegionSelect={handleRadarRegionSelect}
+              targetBrand={radar.targetBrand}
+            />
+            <RadarPanel
+              targetBrand={radar.targetBrand}
+              selectedScore={radar.selectedRegion ? radar.getRegionScore(radar.selectedRegion) : undefined}
+              topOpportunities={radar.topOpportunities}
+              onSelectRegion={handleRadarRegionSelect}
+              onClose={handleRadarClosePanel}
+            />
           </>
         ) : (
-          <div className="flex-1 overflow-auto">
-            <TableView onRegionSelect={handleRegionSelect} />
-          </div>
+          <>
+            <Sidebar
+              selectedBrands={selectedBrands}
+              onToggleBrand={handleToggleBrand}
+              metric={metric}
+              onMetricChange={setMetric}
+              display={display}
+              onDisplayChange={setDisplay}
+            />
+            {activeView === "map" ? (
+              <>
+                <MapView
+                  selectedBrands={selectedBrands}
+                  metric={metric}
+                  display={display}
+                  selectedRegion={selectedRegion}
+                  onRegionSelect={handleRegionSelect}
+                  topoData={topoData}
+                />
+                <RegionPanel region={selectedRegion} onClose={handleClosePanel} />
+              </>
+            ) : (
+              <div className="flex-1 overflow-auto">
+                <TableView onRegionSelect={handleRegionSelect} />
+              </div>
+            )}
+          </>
         )}
       </div>
     </div>
