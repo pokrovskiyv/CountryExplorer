@@ -20,15 +20,21 @@ function getDominantFactor(breakdown: ScoreBreakdown): SubScoreKey {
   return entries[0][0];
 }
 
-function getWeakestFactor(breakdown: ScoreBreakdown): SubScoreKey {
+function getWeakestFactor(
+  breakdown: ScoreBreakdown,
+  excludeKey?: SubScoreKey
+): SubScoreKey {
   const entries: [SubScoreKey, number][] = [
     ["penetrationGap", breakdown.penetrationGap],
     ["competitorPresence", breakdown.competitorPresence],
     ["populationScore", breakdown.populationScore],
     ["densityHeadroom", breakdown.densityHeadroom],
   ];
-  entries.sort((a, b) => a[1] - b[1]);
-  return entries[0][0];
+  const filtered = excludeKey
+    ? entries.filter(([k]) => k !== excludeKey)
+    : entries;
+  filtered.sort((a, b) => a[1] - b[1]);
+  return filtered[0][0];
 }
 
 /** Format population (in thousands) as human-readable string */
@@ -65,4 +71,53 @@ export function generateInsight(brand: string, score: RegionScore): string {
   }
 
   return `${region} appears largely saturated for ${brand} (score: ${composite}). The ${brandCount} existing locations already serve the ${pop} market effectively. ${SUB_SCORE_LABELS[weakest]} is the key constraint. Consider optimizing existing locations rather than expanding.`;
+}
+
+// --- Structured Insight ---
+
+export interface StructuredInsight {
+  readonly headline: string;
+  readonly summary: string;
+  readonly keyStrength: string;
+  readonly keyRisk: string;
+}
+
+const TIER_HEADLINES: Record<string, string> = {
+  Hot: "High-Priority Market",
+  Warm: "Promising Market",
+  Moderate: "Balanced Market",
+  Cool: "Lower-Priority Market",
+  Cold: "Saturated Market",
+};
+
+const STRENGTH_BY_FACTOR: Record<SubScoreKey, string> = {
+  penetrationGap: "Brand is under-represented relative to market potential",
+  competitorPresence: "Strong competitor presence validates market demand",
+  populationScore: "Large addressable population provides scale opportunity",
+  densityHeadroom: "Low QSR saturation leaves room for new entrants",
+};
+
+const RISK_BY_FACTOR: Record<SubScoreKey, string> = {
+  penetrationGap: "Brand already well-penetrated — limited gap to exploit",
+  competitorPresence: "Low competitor activity may signal weak demand",
+  populationScore: "Smaller population limits total addressable market",
+  densityHeadroom: "High QSR density limits available growth slots",
+};
+
+export function generateStructuredInsight(
+  brand: string,
+  score: RegionScore
+): StructuredInsight {
+  const { region: rawRegion, composite, tier, breakdown, brandCount, population } = score;
+  const region = rawRegion.replace(" (England)", "");
+  const dominant = getDominantFactor(breakdown);
+  const weakest = getWeakestFactor(breakdown, dominant);
+  const pop = formatPopulation(population);
+
+  return {
+    headline: TIER_HEADLINES[tier] || "Market Overview",
+    summary: `${region} scores ${composite}/100 for ${brand} expansion. With ${brandCount} locations serving ${pop} people, ${SUB_SCORE_LABELS[dominant]} is the primary driver.`,
+    keyStrength: STRENGTH_BY_FACTOR[dominant],
+    keyRisk: RISK_BY_FACTOR[weakest],
+  };
 }

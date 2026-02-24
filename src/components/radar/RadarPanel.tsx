@@ -1,10 +1,10 @@
-import { BRANDS } from "@/data/uk-data";
-import type { RegionScore } from "@/lib/expansion-scoring";
-import { getTierColor } from "@/lib/opportunity-colors";
-import { generateInsight, formatPopulation } from "@/lib/insight-generator";
+import type { RegionScore, OpportunityWeights } from "@/lib/expansion-scoring";
 import ScoreGauge from "./ScoreGauge";
 import ScoreBadge from "./ScoreBadge";
-import OpportunityChart from "./OpportunityChart";
+import StatTiles from "./StatTiles";
+import FactorBreakdown from "./FactorBreakdown";
+import ComparativeSnapshot from "./ComparativeSnapshot";
+import InsightCard from "./InsightCard";
 
 interface RadarPanelProps {
   readonly targetBrand: string;
@@ -12,14 +12,18 @@ interface RadarPanelProps {
   readonly topOpportunities: readonly RegionScore[];
   readonly onSelectRegion: (region: string) => void;
   readonly onClose: () => void;
+  readonly weights: OpportunityWeights;
+  readonly allScores: readonly RegionScore[];
 }
 
-const SUB_SCORE_META: { key: keyof RegionScore["breakdown"]; label: string; color: string; desc: string }[] = [
-  { key: "penetrationGap", label: "Penetration Gap", color: "#ec4899", desc: "Brand density vs national average" },
-  { key: "competitorPresence", label: "Competitor Presence", color: "#3b82f6", desc: "Validated demand from rivals" },
-  { key: "populationScore", label: "Population Size", color: "#22c55e", desc: "Addressable market size" },
-  { key: "densityHeadroom", label: "Density Headroom", color: "#f59e0b", desc: "Room for QSR growth overall" },
-];
+const SectionHeader = ({ title }: { readonly title: string }) => (
+  <div className="flex items-center gap-2 mb-3">
+    <h4 className="text-[11px] uppercase tracking-wide text-muted-foreground whitespace-nowrap">
+      {title}
+    </h4>
+    <div className="flex-1 h-px bg-border" />
+  </div>
+);
 
 const RadarPanel = ({
   targetBrand,
@@ -27,6 +31,8 @@ const RadarPanel = ({
   topOpportunities,
   onSelectRegion,
   onClose,
+  weights,
+  allScores,
 }: RadarPanelProps) => {
   if (!selectedScore) {
     return (
@@ -65,9 +71,7 @@ const RadarPanel = ({
     );
   }
 
-  const { region, composite, tier, breakdown, brandCount, totalCount, population } = selectedScore;
-  const insight = generateInsight(targetBrand, selectedScore);
-  const brandColor = BRANDS[targetBrand]?.color || "#3b82f6";
+  const { region, composite, tier, breakdown } = selectedScore;
 
   return (
     <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
@@ -85,69 +89,51 @@ const RadarPanel = ({
         </button>
       </div>
 
-      <div className="p-4">
-        {/* Score Gauge */}
-        <div className="flex justify-center mb-3">
+      <div className="p-4 space-y-0">
+        {/* 1. Score Gauge (hero) */}
+        <div
+          className="flex justify-center mb-3 animate-in fade-in-0 slide-in-from-bottom-2"
+          style={{ animationDuration: "400ms" }}
+        >
           <ScoreGauge score={composite} tier={tier} size={140} />
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-3 gap-2 mb-4">
-          <div className="bg-[hsl(230,25%,13%)] rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Brand</div>
-            <div className="text-lg font-bold tabular-nums" style={{ color: brandColor }}>
-              {brandCount}
-            </div>
-          </div>
-          <div className="bg-[hsl(230,25%,13%)] rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Total QSR</div>
-            <div className="text-lg font-bold text-foreground tabular-nums">{totalCount}</div>
-          </div>
-          <div className="bg-[hsl(230,25%,13%)] rounded-lg p-2.5 text-center">
-            <div className="text-[10px] text-muted-foreground uppercase tracking-wide">Pop.</div>
-            <div className="text-lg font-bold text-foreground tabular-nums">
-              {formatPopulation(population)}
-            </div>
-          </div>
+        {/* 2. Stat Tiles */}
+        <div
+          className="py-4 border-t border-border animate-in fade-in-0 slide-in-from-bottom-2"
+          style={{ animationDuration: "400ms", animationDelay: "50ms", animationFillMode: "backwards" }}
+        >
+          <StatTiles score={selectedScore} targetBrand={targetBrand} />
         </div>
 
-        {/* Sub-score bars */}
-        <h4 className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2.5">
-          Factor breakdown
-        </h4>
-        <div className="space-y-2.5 mb-4">
-          {SUB_SCORE_META.map(({ key, label, color, desc }) => {
-            const value = breakdown[key];
-            return (
-              <div key={key}>
-                <div className="flex items-center justify-between mb-0.5">
-                  <span className="text-[11px] text-slate-300">{label}</span>
-                  <span className="text-[11px] font-bold tabular-nums" style={{ color }}>
-                    {value}
-                  </span>
-                </div>
-                <div className="w-full h-1.5 bg-[hsl(230,25%,15%)] rounded-full overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${value}%`, background: color }}
-                  />
-                </div>
-                <div className="text-[10px] text-muted-foreground mt-0.5">{desc}</div>
-              </div>
-            );
-          })}
+        {/* 3. Factor Breakdown */}
+        <div
+          className="py-4 border-t border-border animate-in fade-in-0 slide-in-from-bottom-2"
+          style={{ animationDuration: "400ms", animationDelay: "100ms", animationFillMode: "backwards" }}
+        >
+          <SectionHeader title="Factor Breakdown" />
+          <FactorBreakdown breakdown={breakdown} weights={weights} />
         </div>
 
-        {/* Radar Chart */}
-        <OpportunityChart breakdown={breakdown} tier={tier} />
+        {/* 4. Comparative Snapshot */}
+        <div
+          className="py-4 border-t border-border animate-in fade-in-0 slide-in-from-bottom-2"
+          style={{ animationDuration: "400ms", animationDelay: "150ms", animationFillMode: "backwards" }}
+        >
+          <SectionHeader title="Regional Comparison" />
+          <ComparativeSnapshot
+            selectedScore={selectedScore}
+            allScores={allScores}
+          />
+        </div>
 
-        {/* Insight */}
-        <div className="mt-4 bg-[hsl(230,25%,13%)] rounded-lg p-3.5">
-          <h4 className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2 flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: getTierColor(tier) }} />
-            AI Insight
-          </h4>
-          <p className="text-[12px] text-slate-300 leading-relaxed">{insight}</p>
+        {/* 5. Insight Card */}
+        <div
+          className="py-4 border-t border-border animate-in fade-in-0 slide-in-from-bottom-2"
+          style={{ animationDuration: "400ms", animationDelay: "200ms", animationFillMode: "backwards" }}
+        >
+          <SectionHeader title="AI Insight" />
+          <InsightCard targetBrand={targetBrand} score={selectedScore} />
         </div>
       </div>
     </div>

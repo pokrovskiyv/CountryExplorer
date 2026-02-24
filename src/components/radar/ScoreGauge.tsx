@@ -1,5 +1,10 @@
 import { getTierColor } from "@/lib/opportunity-colors";
 import type { ScoreTier } from "@/lib/expansion-scoring";
+import {
+  Tooltip,
+  TooltipTrigger,
+  TooltipContent,
+} from "@/components/ui/tooltip";
 
 interface ScoreGaugeProps {
   readonly score: number;
@@ -18,6 +23,13 @@ const ScoreGauge = ({ score, tier, size = 120 }: ScoreGaugeProps) => {
 
   return (
     <div className="relative" style={{ width: size, height: size * 0.65 }}>
+      <style>{`
+        @keyframes gauge-glow-pulse {
+          0% { filter: drop-shadow(0 0 6px ${color}40); }
+          50% { filter: drop-shadow(0 0 12px ${color}70); }
+          100% { filter: drop-shadow(0 0 6px ${color}40); }
+        }
+      `}</style>
       <svg
         width={size}
         height={size * 0.65}
@@ -43,17 +55,25 @@ const ScoreGauge = ({ score, tier, size = 120 }: ScoreGaugeProps) => {
           strokeDashoffset={offset}
           className="transition-all duration-700 ease-out"
           style={{
+            animation: "gauge-glow-pulse 1.2s ease-in-out 1",
             filter: `drop-shadow(0 0 6px ${color}40)`,
           }}
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-end pb-0">
-        <span
-          className="text-2xl font-bold tabular-nums leading-none"
-          style={{ color }}
-        >
-          {score}
-        </span>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span
+              className="text-2xl font-bold tabular-nums leading-none cursor-help"
+              style={{ color }}
+            >
+              {score}
+            </span>
+          </TooltipTrigger>
+          <TooltipContent className="bg-[hsl(230,25%,11%)] border-border text-slate-200 text-xs max-w-[220px] leading-relaxed">
+            Weighted composite score (0–100) combining all factors below. Higher = stronger expansion opportunity.
+          </TooltipContent>
+        </Tooltip>
         <span className="text-[10px] text-muted-foreground mt-0.5">/ 100</span>
       </div>
     </div>

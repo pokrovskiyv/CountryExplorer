@@ -14,13 +14,30 @@ import { BRANDS } from "@/data/uk-data";
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both";
 
+const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar"]);
+
+function readViewFromHash(): ViewType {
+  const raw = window.location.hash.replace("#", "") as ViewType;
+  return VALID_VIEWS.has(raw) ? raw : "map";
+}
+
 const Explorer = () => {
-  const [activeView, setActiveView] = useState<ViewType>("map");
+  const [activeView, setActiveView] = useState<ViewType>(readViewFromHash);
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set(Object.keys(BRANDS)));
   const [metric, setMetric] = useState<Metric>("total");
   const [display, setDisplay] = useState<Display>("choropleth");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [topoData, setTopoData] = useState<any>(null);
+
+  useEffect(() => {
+    window.location.hash = activeView;
+  }, [activeView]);
+
+  useEffect(() => {
+    const onHashChange = () => setActiveView(readViewFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   const radar = useExpansionRadar(activeView === "radar");
 
@@ -97,6 +114,8 @@ const Explorer = () => {
               topOpportunities={radar.topOpportunities}
               onSelectRegion={handleRadarRegionSelect}
               onClose={handleRadarClosePanel}
+              weights={radar.weights}
+              allScores={radar.scores}
             />
           </>
         ) : (
