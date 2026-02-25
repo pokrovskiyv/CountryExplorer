@@ -53,6 +53,15 @@ All colors MUST be HSL.
     --sidebar-border: 220 13% 91%;
 
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --surface-deep: 220 20% 98%;
+    --surface-0: 220 15% 95%;
+    --surface-1: 220 13% 91%;
+    --surface-2: 220 12% 87%;
+    --surface-3: 220 10% 82%;
+    --surface-4: 220 10% 75%;
+    --surface-5: 220 8% 65%;
+    --surface-6: 220 8% 55%;
   }
 
   .dark {
@@ -91,6 +100,15 @@ All colors MUST be HSL.
     --sidebar-accent-foreground: 240 4.8% 95.9%;
     --sidebar-border: 240 3.7% 15.9%;
     --sidebar-ring: 217.2 91.2% 59.8%;
+
+    --surface-deep: 230 30% 6%;
+    --surface-0: 230 25% 10%;
+    --surface-1: 230 25% 13%;
+    --surface-2: 230 25% 16%;
+    --surface-3: 230 25% 20%;
+    --surface-4: 230 15% 30%;
+    --surface-5: 230 15% 35%;
+    --surface-6: 230 25% 18%;
   }
 }
 
@@ -104,17 +122,17 @@ All colors MUST be HSL.
   }
 }
 
-/* Leaflet overrides for dark theme */
+/* Leaflet overrides */
 .leaflet-container {
-  background: hsl(230, 30%, 6%) !important;
+  background: hsl(var(--surface-deep)) !important;
 }
 .leaflet-control-zoom {
-  border: 1px solid hsl(230, 20%, 18%) !important;
+  border: 1px solid hsl(var(--surface-6)) !important;
 }
 .leaflet-control-zoom a {
-  background: hsl(230, 25%, 10%) !important;
-  color: #e0e0e0 !important;
-  border-color: hsl(230, 20%, 18%) !important;
+  background: hsl(var(--surface-0)) !important;
+  color: hsl(var(--foreground)) !important;
+  border-color: hsl(var(--surface-6)) !important;
 }
 .leaflet-control-attribution {
   display: none !important;
@@ -141,6 +159,6 @@ All colors MUST be HSL.
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: hsl(230, 20%, 18%);
+  background: hsl(var(--surface-6));
   border-radius: 3px;
 }

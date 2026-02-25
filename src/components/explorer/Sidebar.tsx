@@ -36,7 +36,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
   const totalPop = Object.values(POPULATION).reduce((a, b) => a + b, 0);
 
   return (
-    <div className="w-80 bg-[hsl(230,25%,10%)] border-r border-border overflow-y-auto shrink-0">
+    <div className="w-80 bg-surface-0 border-r border-border overflow-y-auto shrink-0">
       {/* Brand groups */}
       <div className="p-4 border-b border-border">
         <BrandGroupManager
@@ -52,7 +52,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
       <div className="p-4 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Brands</h3>
         {sorted.map((b) => (
-          <label key={b} className="flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer hover:bg-[hsl(230,25%,13%)] mb-0.5">
+          <label key={b} className="flex items-center gap-2.5 px-2.5 py-2 rounded-md cursor-pointer hover:bg-surface-1 mb-0.5">
             <input
               type="checkbox"
               checked={selectedBrands.has(b)}
@@ -83,7 +83,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
               className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
                 metric === m
                   ? "bg-blue-600/10 border-blue-600 text-blue-400"
-                  : "bg-[hsl(230,25%,13%)] border-border text-muted-foreground hover:border-slate-600 hover:text-slate-300"
+                  : "bg-surface-1 border-border text-muted-foreground hover:border-slate-600 hover:text-slate-300"
               }`}
             >
               {label}
@@ -103,7 +103,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
               className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
                 display === d
                   ? "bg-blue-600/10 border-blue-600 text-blue-400"
-                  : "bg-[hsl(230,25%,13%)] border-border text-muted-foreground hover:border-slate-600 hover:text-slate-300"
+                  : "bg-surface-1 border-border text-muted-foreground hover:border-slate-600 hover:text-slate-300"
               }`}
             >
               {label}
@@ -122,7 +122,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
             { label: "Regions", value: Object.keys(REGION_COUNTS).length },
             { label: "Per 100k", value: ((totalLocations / totalPop) * 100).toFixed(1) },
           ].map((s) => (
-            <div key={s.label} className="bg-[hsl(230,25%,13%)] rounded-lg p-3">
+            <div key={s.label} className="bg-surface-1 rounded-lg p-3">
               <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{s.label}</div>
               <div className="text-xl font-bold text-foreground mt-0.5 tabular-nums">{s.value}</div>
             </div>

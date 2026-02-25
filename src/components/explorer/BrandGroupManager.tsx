@@ -47,7 +47,7 @@ const BrandGroupManager = ({
           <button
             key={group.id}
             onClick={() => onApplyGroup(group.brands)}
-            className="group flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-[hsl(230,25%,13%)] border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors"
+            className="group flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-surface-1 border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors"
           >
             <span>{group.name}</span>
             <span className="text-[10px] opacity-60">({group.brands.length})</span>
@@ -73,7 +73,7 @@ const BrandGroupManager = ({
             onKeyDown={handleKeyDown}
             placeholder="Group name..."
             autoFocus
-            className="flex-1 px-2 py-1 rounded text-xs bg-[hsl(230,25%,13%)] border border-border text-slate-200 placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
+            className="flex-1 px-2 py-1 rounded text-xs bg-surface-1 border border-border text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-blue-600"
           />
           <button
             onClick={handleSave}

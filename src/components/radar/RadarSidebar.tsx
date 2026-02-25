@@ -33,19 +33,19 @@ const RadarSidebar = ({
   const brandNames = Object.keys(BRANDS);
 
   return (
-  <div className="w-80 bg-[hsl(230,25%,10%)] border-r border-border shrink-0 overflow-y-auto flex flex-col">
+  <div className="w-80 bg-surface-0 border-r border-border shrink-0 overflow-y-auto flex flex-col">
     {/* Target Brand Selector */}
     <div className="p-4 border-b border-border">
       <h3 className="text-[11px] uppercase tracking-wide text-muted-foreground mb-2.5">
         Target brand
       </h3>
       <Select value={targetBrand} onValueChange={onBrandChange}>
-        <SelectTrigger className="bg-[hsl(230,25%,13%)] border-border text-slate-200 h-9">
+        <SelectTrigger className="bg-surface-1 border-border text-foreground h-9">
           <SelectValue />
         </SelectTrigger>
-        <SelectContent className="bg-[hsl(230,25%,13%)] border-border">
+        <SelectContent className="bg-surface-1 border-border">
           {brandNames.map((brand) => (
-            <SelectItem key={brand} value={brand} className="text-slate-200">
+            <SelectItem key={brand} value={brand} className="text-foreground">
               <span className="flex items-center gap-2">
                 <span
                   className="w-2.5 h-2.5 rounded-full shrink-0"
@@ -78,7 +78,7 @@ const RadarSidebar = ({
           <button
             key={opp.region}
             onClick={() => onSelectRegion(opp.region)}
-            className="w-full bg-[hsl(230,25%,13%)] rounded-lg p-3 text-left hover:bg-[hsl(230,25%,15%)] transition-colors"
+            className="w-full bg-surface-1 rounded-lg p-3 text-left hover:bg-surface-2 transition-colors"
           >
             <div className="flex items-center justify-between mb-1">
               <div className="flex items-center gap-2">
@@ -88,14 +88,14 @@ const RadarSidebar = ({
                 >
                   #{idx + 1}
                 </span>
-                <span className="text-[12px] font-medium text-slate-200 truncate">
+                <span className="text-[12px] font-medium text-foreground truncate">
                   {opp.region.replace(" (England)", "")}
                 </span>
               </div>
               <ScoreBadge tier={opp.tier} />
             </div>
             <div className="flex items-center gap-2 mt-1.5">
-              <div className="flex-1 h-1 bg-[hsl(230,25%,18%)] rounded-full overflow-hidden">
+              <div className="flex-1 h-1 bg-surface-6 rounded-full overflow-hidden">
                 <div
                   className="h-full rounded-full"
                   style={{

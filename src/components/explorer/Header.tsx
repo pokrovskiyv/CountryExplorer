@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import { Crosshair, FileDown } from "lucide-react";
 import { exportViewAsPDF } from "@/lib/export-pdf";
 import AlertBadge from "./AlertBadge";
+import ThemeToggle from "./ThemeToggle";
 
 export type ViewType = "map" | "table" | "radar";
 
@@ -37,7 +38,7 @@ const COUNTRIES = [
 ];
 
 const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange, alertUnreadCount, onAlertClick }: HeaderProps) => (
-  <div className="h-14 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
+  <div className="h-14 bg-surface-0 border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
     <Link to="/" className="flex items-center gap-2 text-lg font-bold text-foreground">
       <GlobeIcon />
       Getplace
@@ -50,7 +51,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
           className={`px-4 py-2 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
             activeView === v
               ? "bg-blue-600/10 text-blue-400"
-              : "text-muted-foreground hover:bg-[hsl(230,25%,13%)] hover:text-slate-300"
+              : "text-muted-foreground hover:bg-surface-1 hover:text-slate-300"
           }`}
         >
           {v === "radar" && <Crosshair className="w-3.5 h-3.5" />}
@@ -66,17 +67,18 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
     {contentRef?.current && (
       <button
         onClick={() => exportViewAsPDF(contentRef.current!)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-[hsl(230,25%,13%)] border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors ml-auto"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-surface-1 border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors ml-auto"
       >
         <FileDown className="w-3.5 h-3.5" />
         Export PDF
       </button>
     )}
+    <ThemeToggle />
     <AlertBadge unreadCount={alertUnreadCount} onClick={onAlertClick} />
     <select
       value={activeCountry}
       onChange={(e) => onCountryChange(e.target.value as "uk")}
-      className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}
+      className={`${contentRef?.current ? "" : "ml-auto "}bg-surface-1 border border-border text-foreground px-3 py-1.5 rounded-md text-[13px]`}
     >
       {COUNTRIES.map((c) => (
         <option key={c.code} value={c.code} disabled={!c.enabled}>

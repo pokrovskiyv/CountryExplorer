@@ -20,10 +20,10 @@ const TimelineSlider = ({
   onMonthChange,
   onTogglePlay,
 }: TimelineSliderProps) => (
-  <div className="h-10 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-3 shrink-0">
+  <div className="h-10 bg-surface-0 border-b border-border flex items-center px-5 gap-3 shrink-0">
     <button
       onClick={onTogglePlay}
-      className="flex items-center justify-center w-7 h-7 rounded-md bg-[hsl(230,25%,15%)] border border-border text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+      className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-2 border border-border text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
       aria-label={isPlaying ? "Pause" : "Play"}
     >
       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}

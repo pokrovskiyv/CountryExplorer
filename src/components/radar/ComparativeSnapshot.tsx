@@ -28,7 +28,7 @@ const ComparativeSnapshot = ({
         <span className="text-[11px] text-muted-foreground uppercase tracking-wide">
           Rank among regions
         </span>
-        <span className="text-[13px] font-semibold text-slate-200">
+        <span className="text-[13px] font-semibold text-foreground">
           #{rank} of {total}
         </span>
       </div>
@@ -39,7 +39,7 @@ const ComparativeSnapshot = ({
 
       <div className="relative h-8 flex items-center">
         {/* Track */}
-        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-[hsl(230,25%,18%)] rounded-full" />
+        <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-1 bg-surface-6 rounded-full" />
 
         {/* Region dots */}
         {sorted.map((score) => {
@@ -54,7 +54,7 @@ const ComparativeSnapshot = ({
                 style={{ left }}
               >
                 <div
-                  className="w-4 h-4 rounded-full border-2 border-[hsl(230,25%,10%)]"
+                  className="w-4 h-4 rounded-full border-2 border-surface-0"
                   style={{
                     background: tierColor,
                     boxShadow: `0 0 8px ${tierColor}60`,
@@ -75,10 +75,10 @@ const ComparativeSnapshot = ({
                   className="absolute top-1/2 -translate-x-1/2 -translate-y-1/2 cursor-help"
                   style={{ left }}
                 >
-                  <div className="w-2 h-2 rounded-full bg-[hsl(230,15%,35%)]" />
+                  <div className="w-2 h-2 rounded-full bg-surface-5" />
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="bg-[hsl(230,25%,11%)] border-border text-slate-200 text-xs max-w-[220px] leading-relaxed">
+              <TooltipContent className="bg-surface-0 border-border text-foreground text-xs max-w-[220px] leading-relaxed">
                 {shortName(score.region)}: {score.composite}
               </TooltipContent>
             </Tooltip>

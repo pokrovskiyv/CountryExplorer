@@ -331,12 +331,12 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className="absolute z-[600] bg-[hsl(230,25%,13%)] border border-border rounded-lg px-3.5 py-2.5 pointer-events-none text-xs whitespace-nowrap shadow-lg"
+        className="absolute z-[600] bg-surface-1 border border-border rounded-lg px-3.5 py-2.5 pointer-events-none text-xs whitespace-nowrap shadow-lg"
         style={{ display: "none" }}
       />
 
       {/* Legend */}
-      <div className="absolute bottom-6 left-6 bg-[hsl(230,25%,10%)]/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
+      <div className="absolute bottom-6 left-6 bg-surface-0/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
         <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">{legendLabel}</div>
         {display === "heatmap" ? (
           <>

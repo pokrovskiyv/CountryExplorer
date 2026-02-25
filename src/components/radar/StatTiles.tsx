@@ -80,7 +80,7 @@ const StatTiles = ({ score, targetBrand }: StatTilesProps) => {
         return (
           <div
             key={tile.label}
-            className="bg-[hsl(230,25%,13%)] rounded-lg p-2.5"
+            className="bg-surface-1 rounded-lg p-2.5"
           >
             <Tooltip>
               <TooltipTrigger asChild>
@@ -88,7 +88,7 @@ const StatTiles = ({ score, targetBrand }: StatTilesProps) => {
                   {tile.label}
                 </div>
               </TooltipTrigger>
-              <TooltipContent className="bg-[hsl(230,25%,11%)] border-border text-slate-200 text-xs max-w-[220px] leading-relaxed">
+              <TooltipContent className="bg-surface-0 border-border text-foreground text-xs max-w-[220px] leading-relaxed">
                 {tile.tooltip}
               </TooltipContent>
             </Tooltip>

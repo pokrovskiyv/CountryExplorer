@@ -17,7 +17,7 @@ const Features = () => (
     </div>
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {features.map((f) => (
-        <div key={f.title} className="bg-[hsl(230,25%,10%)] border border-border rounded-xl p-7 transition-colors hover:border-blue-600/25">
+        <div key={f.title} className="bg-surface-0 border border-border rounded-xl p-7 transition-colors hover:border-blue-600/25">
           <div className="w-11 h-11 bg-blue-600/10 rounded-xl flex items-center justify-center text-[22px] mb-4">
             {f.icon}
           </div>

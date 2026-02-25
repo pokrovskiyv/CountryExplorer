@@ -30,7 +30,7 @@ const CityBreakdown = ({ cities, selectedBrands }: CityBreakdownProps) => {
               {total}
             </span>
           </div>
-          <div className="flex h-4 bg-[hsl(230,25%,13%)] rounded overflow-hidden">
+          <div className="flex h-4 bg-surface-1 rounded overflow-hidden">
             {brands.map((brand) => {
               const count = brandCounts[brand] || 0;
               if (count === 0) return null;

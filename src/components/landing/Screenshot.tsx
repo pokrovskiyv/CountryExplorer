@@ -1,14 +1,14 @@
 const Screenshot = () => (
   <div className="max-w-[1100px] mx-auto -mt-5 px-6">
-    <div className="bg-[hsl(230,25%,10%)] border border-border rounded-xl overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
+    <div className="bg-surface-0 border border-border rounded-xl overflow-hidden shadow-[0_24px_80px_rgba(0,0,0,0.5)]">
       {/* Window bar */}
-      <div className="h-10 bg-[hsl(230,25%,13%)] border-b border-border flex items-center px-4 gap-2">
+      <div className="h-10 bg-surface-1 border-b border-border flex items-center px-4 gap-2">
         <span className="w-2.5 h-2.5 rounded-full bg-red-500" />
         <span className="w-2.5 h-2.5 rounded-full bg-yellow-400" />
         <span className="w-2.5 h-2.5 rounded-full bg-green-500" />
       </div>
       {/* Screenshot content */}
-      <div className="w-full aspect-video bg-gradient-to-br from-[hsl(230,30%,6%)] via-[hsl(230,25%,10%)] to-[hsl(230,25%,13%)] flex items-center justify-center relative overflow-hidden">
+      <div className="w-full aspect-video bg-gradient-to-br from-surface-deep via-surface-0 to-surface-1 flex items-center justify-center relative overflow-hidden">
         <svg viewBox="0 0 1100 620" xmlns="http://www.w3.org/2000/svg" className="w-full h-full opacity-50">
           <g transform="translate(350,50) scale(1.2)" fill="#1e3a8a" stroke="#2a2d3a" strokeWidth="1" opacity="0.6">
             <path d="M180,50 L220,30 L260,60 L270,120 L250,180 L280,220 L270,280 L240,320 L200,350 L160,380 L120,370 L100,330 L80,280 L70,220 L90,160 L120,100 L150,70 Z" />

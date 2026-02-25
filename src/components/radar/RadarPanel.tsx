@@ -36,7 +36,7 @@ const RadarPanel = ({
 }: RadarPanelProps) => {
   if (!selectedScore) {
     return (
-      <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
+      <div className="w-[380px] bg-surface-0 border-l border-border shrink-0 overflow-y-auto">
         <div className="p-4 border-b border-border">
           <h2 className="text-base font-semibold">Expansion Radar</h2>
         </div>
@@ -52,10 +52,10 @@ const RadarPanel = ({
               <button
                 key={opp.region}
                 onClick={() => onSelectRegion(opp.region)}
-                className="w-full bg-[hsl(230,25%,13%)] rounded-lg p-3.5 text-left hover:bg-[hsl(230,25%,15%)] transition-colors"
+                className="w-full bg-surface-1 rounded-lg p-3.5 text-left hover:bg-surface-2 transition-colors"
               >
                 <div className="flex items-center justify-between mb-2">
-                  <span className="text-[13px] font-medium text-slate-200">
+                  <span className="text-[13px] font-medium text-foreground">
                     {opp.region.replace(" (England)", "")}
                   </span>
                   <ScoreBadge tier={opp.tier} />
@@ -74,7 +74,7 @@ const RadarPanel = ({
   const { region, composite, tier, breakdown } = selectedScore;
 
   return (
-    <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
+    <div className="w-[380px] bg-surface-0 border-l border-border shrink-0 overflow-y-auto">
       {/* Header */}
       <div className="p-4 border-b border-border flex items-center justify-between">
         <div className="flex items-center gap-2">

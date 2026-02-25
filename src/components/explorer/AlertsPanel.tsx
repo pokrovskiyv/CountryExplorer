@@ -68,9 +68,9 @@ const AlertsPanel = ({
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
-      <SheetContent side="right" className="w-[380px] bg-[hsl(230,25%,10%)] border-border text-slate-200 overflow-y-auto">
+      <SheetContent side="right" className="w-[380px] bg-surface-0 border-border text-foreground overflow-y-auto">
         <SheetHeader className="pb-3 border-b border-border">
-          <SheetTitle className="text-slate-200">Alerts</SheetTitle>
+          <SheetTitle className="text-foreground">Alerts</SheetTitle>
         </SheetHeader>
 
         {/* Tab selector */}
@@ -85,7 +85,7 @@ const AlertsPanel = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border ${
                 activeTab === key
                   ? "bg-blue-600/10 border-blue-600 text-blue-400"
-                  : "bg-[hsl(230,25%,13%)] border-border text-muted-foreground hover:text-slate-300"
+                  : "bg-surface-1 border-border text-muted-foreground hover:text-slate-300"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -115,8 +115,8 @@ const AlertsPanel = ({
                     key={event.id}
                     className={`p-2.5 rounded-lg border text-xs ${
                       event.read
-                        ? "bg-[hsl(230,25%,12%)] border-border text-muted-foreground"
-                        : "bg-[hsl(230,25%,14%)] border-blue-600/30 text-slate-200"
+                        ? "bg-surface-1 border-border text-muted-foreground"
+                        : "bg-surface-1 border-blue-600/30 text-foreground"
                     }`}
                   >
                     <div className="flex items-center justify-between mb-1">
@@ -149,13 +149,13 @@ const AlertsPanel = ({
             </button>
 
             {showForm && (
-              <div className="bg-[hsl(230,25%,13%)] rounded-lg p-3 mb-3 space-y-2.5 border border-border">
+              <div className="bg-surface-1 rounded-lg p-3 mb-3 space-y-2.5 border border-border">
                 <div>
                   <label className="text-[10px] text-muted-foreground uppercase block mb-1">Type</label>
                   <select
                     value={ruleType}
                     onChange={(e) => setRuleType(e.target.value as AlertRuleType)}
-                    className="w-full bg-[hsl(230,25%,16%)] border border-border text-slate-200 px-2 py-1.5 rounded text-xs"
+                    className="w-full bg-surface-2 border border-border text-foreground px-2 py-1.5 rounded text-xs"
                   >
                     {RULE_TYPES.map((t) => (
                       <option key={t.value} value={t.value}>{t.label}</option>
@@ -167,7 +167,7 @@ const AlertsPanel = ({
                   <select
                     value={ruleBrand}
                     onChange={(e) => setRuleBrand(e.target.value)}
-                    className="w-full bg-[hsl(230,25%,16%)] border border-border text-slate-200 px-2 py-1.5 rounded text-xs"
+                    className="w-full bg-surface-2 border border-border text-foreground px-2 py-1.5 rounded text-xs"
                   >
                     {brandNames.map((b) => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -177,7 +177,7 @@ const AlertsPanel = ({
                   <select
                     value={ruleRegion}
                     onChange={(e) => setRuleRegion(e.target.value)}
-                    className="w-full bg-[hsl(230,25%,16%)] border border-border text-slate-200 px-2 py-1.5 rounded text-xs"
+                    className="w-full bg-surface-2 border border-border text-foreground px-2 py-1.5 rounded text-xs"
                   >
                     {regionNames.map((r) => <option key={r} value={r}>{r}</option>)}
                   </select>
@@ -190,7 +190,7 @@ const AlertsPanel = ({
                       value={ruleValue}
                       onChange={(e) => setRuleValue(Number(e.target.value))}
                       min={1}
-                      className="w-full bg-[hsl(230,25%,16%)] border border-border text-slate-200 px-2 py-1.5 rounded text-xs"
+                      className="w-full bg-surface-2 border border-border text-foreground px-2 py-1.5 rounded text-xs"
                     />
                   </div>
                 )}
@@ -200,7 +200,7 @@ const AlertsPanel = ({
                     <select
                       value={ruleRival}
                       onChange={(e) => setRuleRival(e.target.value)}
-                      className="w-full bg-[hsl(230,25%,16%)] border border-border text-slate-200 px-2 py-1.5 rounded text-xs"
+                      className="w-full bg-surface-2 border border-border text-foreground px-2 py-1.5 rounded text-xs"
                     >
                       {brandNames.filter((b) => b !== ruleBrand).map((b) => (
                         <option key={b} value={b}>{b}</option>
@@ -226,7 +226,7 @@ const AlertsPanel = ({
                 {rules.map((rule) => (
                   <div
                     key={rule.id}
-                    className="flex items-center justify-between p-2.5 rounded-lg bg-[hsl(230,25%,13%)] border border-border"
+                    className="flex items-center justify-between p-2.5 rounded-lg bg-surface-1 border border-border"
                   >
                     <div>
                       <span className={`text-[10px] uppercase font-semibold mr-2 ${

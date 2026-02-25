@@ -13,7 +13,7 @@ const InsightCard = ({ targetBrand, score }: InsightCardProps) => {
   const tierColor = getTierColor(score.tier);
 
   return (
-    <div className="bg-[hsl(230,25%,13%)] rounded-lg overflow-hidden">
+    <div className="bg-surface-1 rounded-lg overflow-hidden">
       {/* Headline + summary with accent border */}
       <div
         className="p-3.5 border-l-[3px]"

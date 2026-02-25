@@ -8,7 +8,7 @@ import CTASection from "@/components/landing/CTASection";
 import Footer from "@/components/landing/Footer";
 
 const LandingPage = () => (
-  <div className="min-h-screen bg-[hsl(230,30%,6%)] text-slate-200">
+  <div className="min-h-screen bg-surface-deep text-foreground">
     <Navbar />
     <Hero />
     <Screenshot />

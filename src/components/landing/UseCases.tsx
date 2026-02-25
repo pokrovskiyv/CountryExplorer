@@ -71,7 +71,7 @@ const UseCases = () => (
           <h3 className="text-2xl sm:text-[28px] font-bold text-foreground mb-3">{uc.title}</h3>
           <p className="text-base text-muted-foreground leading-relaxed">{uc.desc}</p>
         </div>
-        <div className="flex-1 bg-[hsl(230,25%,10%)] border border-border rounded-xl p-8 min-h-[240px] flex items-center justify-center">
+        <div className="flex-1 bg-surface-0 border border-border rounded-xl p-8 min-h-[240px] flex items-center justify-center">
           {uc.visual}
         </div>
       </div>

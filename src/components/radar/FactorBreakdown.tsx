@@ -84,7 +84,7 @@ const FactorBreakdown = ({ breakdown, weights }: FactorBreakdownProps) => {
                       {label}
                     </span>
                   </TooltipTrigger>
-                  <TooltipContent className="bg-[hsl(230,25%,11%)] border-border text-slate-200 text-xs max-w-[220px] leading-relaxed">
+                  <TooltipContent className="bg-surface-0 border-border text-foreground text-xs max-w-[220px] leading-relaxed">
                     {tooltip}
                   </TooltipContent>
                 </Tooltip>
@@ -102,13 +102,13 @@ const FactorBreakdown = ({ breakdown, weights }: FactorBreakdownProps) => {
                 {value}
               </span>
             </div>
-            <div className="w-full h-2.5 bg-[hsl(230,25%,15%)] rounded-full overflow-hidden">
+            <div className="w-full h-2.5 bg-surface-2 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{
                   width: `${barWidth}%`,
                   background: isZero
-                    ? "hsl(230,15%,30%)"
+                    ? "hsl(var(--surface-4))"
                     : `linear-gradient(to right, ${color}90, ${color})`,
                 }}
               />

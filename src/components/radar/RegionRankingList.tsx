@@ -19,7 +19,7 @@ const RegionRankingList = ({ scores, selectedRegion, onSelectRegion }: RegionRan
           className={`w-full flex items-center gap-2 px-2.5 py-2 rounded-md text-left transition-colors ${
             isSelected
               ? "bg-blue-600/10 ring-1 ring-blue-500/30"
-              : "hover:bg-[hsl(230,25%,13%)]"
+              : "hover:bg-surface-1"
           }`}
         >
           <span className="text-[11px] text-muted-foreground w-4 shrink-0 tabular-nums text-right">
@@ -27,12 +27,12 @@ const RegionRankingList = ({ scores, selectedRegion, onSelectRegion }: RegionRan
           </span>
           <div className="flex-1 min-w-0">
             <div className="flex items-center justify-between gap-1 mb-1">
-              <span className="text-[12px] text-slate-200 truncate font-medium">
+              <span className="text-[12px] text-foreground truncate font-medium">
                 {score.region.replace(" (England)", "")}
               </span>
               <ScoreBadge tier={score.tier} />
             </div>
-            <div className="w-full h-1.5 bg-[hsl(230,25%,13%)] rounded-full overflow-hidden">
+            <div className="w-full h-1.5 bg-surface-1 rounded-full overflow-hidden">
               <div
                 className="h-full rounded-full transition-all duration-500"
                 style={{

@@ -40,7 +40,7 @@ const ScoreGauge = ({ score, tier, size = 120 }: ScoreGaugeProps) => {
         <path
           d={`M ${cx - radius} ${cy} A ${radius} ${radius} 0 0 1 ${cx + radius} ${cy}`}
           fill="none"
-          stroke="hsl(230,25%,20%)"
+          stroke="hsl(var(--surface-3))"
           strokeWidth={strokeWidth}
           strokeLinecap="round"
         />
@@ -70,7 +70,7 @@ const ScoreGauge = ({ score, tier, size = 120 }: ScoreGaugeProps) => {
               {score}
             </span>
           </TooltipTrigger>
-          <TooltipContent className="bg-[hsl(230,25%,11%)] border-border text-slate-200 text-xs max-w-[220px] leading-relaxed">
+          <TooltipContent className="bg-surface-0 border-border text-foreground text-xs max-w-[220px] leading-relaxed">
             Weighted composite score (0–100) combining all factors below. Higher = stronger expansion opportunity.
           </TooltipContent>
         </Tooltip>

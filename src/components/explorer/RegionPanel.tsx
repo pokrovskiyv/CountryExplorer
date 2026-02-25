@@ -14,7 +14,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
 
   if (!region) {
     return (
-      <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
+      <div className="w-[380px] bg-surface-0 border-l border-border shrink-0 overflow-y-auto">
         <div className="p-4 border-b border-border flex items-center justify-between">
           <h2 className="text-base font-semibold">Select a region</h2>
         </div>
@@ -39,7 +39,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
   const cities = aggregateCitiesForRegion(region, selectedBrands, brandPoints, cityToRegion);
 
   return (
-    <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
+    <div className="w-[380px] bg-surface-0 border-l border-border shrink-0 overflow-y-auto">
       <div className="p-4 border-b border-border flex items-center justify-between">
         <h2 className="text-base font-semibold">{region}</h2>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg px-1">×</button>
@@ -47,11 +47,11 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
       <div className="p-4">
         {/* Stats */}
         <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-[hsl(230,25%,13%)] rounded-lg p-3">
+          <div className="bg-surface-1 rounded-lg p-3">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Total locations</div>
             <div className="text-xl font-bold text-foreground tabular-nums">{total.toLocaleString()}</div>
           </div>
-          <div className="bg-[hsl(230,25%,13%)] rounded-lg p-3">
+          <div className="bg-surface-1 rounded-lg p-3">
             <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Per 100k pop.</div>
             <div className="text-xl font-bold text-foreground tabular-nums">{density}</div>
             <div className="text-[11px] text-muted-foreground mt-0.5">Pop: {(pop * 1000).toLocaleString()}</div>
@@ -67,7 +67,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
           return (
             <div key={b} className="flex items-center gap-2 py-1.5">
               <span className="text-xs w-20 shrink-0 text-slate-300">{b}</span>
-              <div className="flex-1 h-5 bg-[hsl(230,25%,13%)] rounded overflow-hidden relative">
+              <div className="flex-1 h-5 bg-surface-1 rounded overflow-hidden relative">
                 <div className="h-full rounded transition-all duration-400 min-w-[2px]" style={{ width: `${width}%`, background: BRANDS[b].color }} />
               </div>
               <span className="text-[11px] text-muted-foreground w-[50px] text-right shrink-0 tabular-nums">
@@ -78,11 +78,11 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
         })}
 
         {/* Doughnut chart */}
-        <div className="bg-[hsl(230,25%,13%)] rounded-lg p-4 mt-4">
+        <div className="bg-surface-1 rounded-lg p-4 mt-4">
           <h4 className="text-xs text-muted-foreground uppercase tracking-wide mb-3">Market share</h4>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" stroke="hsl(230,25%,10%)" strokeWidth={2}>
+              <Pie data={chartData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} dataKey="value" stroke="hsl(var(--surface-0))" strokeWidth={2}>
                 {chartData.map((entry) => (
                   <Cell key={entry.name} fill={entry.color} />
                 ))}

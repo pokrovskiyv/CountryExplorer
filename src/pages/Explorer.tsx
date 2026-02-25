@@ -128,7 +128,7 @@ const Explorer = () => {
 
   return (
     <CountryProvider config={countryConfig}>
-      <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
+      <div className="h-screen flex flex-col bg-surface-deep text-foreground overflow-hidden">
         <Header
           activeView={activeView}
           onViewChange={setActiveView}

@@ -130,7 +130,7 @@ const RadarMapView = ({
                   <div class="flex justify-between"><span class="text-slate-400">Population</span><span class="font-medium">${regionScore.breakdown.populationScore}</span></div>
                   <div class="flex justify-between"><span class="text-slate-400">Headroom</span><span class="font-medium">${regionScore.breakdown.densityHeadroom}</span></div>
                 </div>
-                <div class="mt-1.5 pt-1.5 border-t border-[hsl(230,25%,20%)] text-[11px] text-slate-400">
+                <div class="mt-1.5 pt-1.5 border-t border-surface-3 text-[11px] text-slate-400">
                   ${regionScore.brandCount} ${targetBrand} · ${regionScore.totalCount} total QSR
                 </div>`;
 
@@ -175,7 +175,7 @@ const RadarMapView = ({
       const icon = L.divIcon({
         className: "radar-score-label",
         html: `<div style="
-          background: hsl(230,25%,12%);
+          background: hsl(var(--surface-1));
           border: 1.5px solid ${tierColor}90;
           border-radius: 6px;
           padding: 2px 6px;
@@ -227,12 +227,12 @@ const RadarMapView = ({
       {/* Tooltip */}
       <div
         ref={tooltipRef}
-        className="absolute z-[600] bg-[hsl(230,25%,11%)] border border-border rounded-lg px-3.5 py-2.5 pointer-events-none text-xs whitespace-nowrap shadow-xl"
+        className="absolute z-[600] bg-surface-0 border border-border rounded-lg px-3.5 py-2.5 pointer-events-none text-xs whitespace-nowrap shadow-xl"
         style={{ display: "none" }}
       />
 
       {/* Legend */}
-      <div className="absolute bottom-6 left-6 bg-[hsl(230,25%,10%)]/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
+      <div className="absolute bottom-6 left-6 bg-surface-0/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs">
         <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">
           Expansion opportunity
         </div>
@@ -252,12 +252,12 @@ const RadarMapView = ({
       </div>
 
       {/* Brand indicator */}
-      <div className="absolute top-4 left-4 bg-[hsl(230,25%,10%)]/95 border border-border rounded-lg px-3 py-2 z-[500] flex items-center gap-2">
+      <div className="absolute top-4 left-4 bg-surface-0/95 border border-border rounded-lg px-3 py-2 z-[500] flex items-center gap-2">
         <span
           className="w-2.5 h-2.5 rounded-full"
           style={{ background: BRANDS[targetBrand]?.color || "#3b82f6" }}
         />
-        <span className="text-[12px] font-medium text-slate-200">
+        <span className="text-[12px] font-medium text-foreground">
           {targetBrand} Expansion Radar
         </span>
       </div>
