@@ -10,7 +10,7 @@ interface HeaderProps {
   onViewChange: (view: ViewType) => void;
   contentRef?: React.RefObject<HTMLDivElement>;
   activeCountry: string;
-  onCountryChange: (code: "uk" | "de") => void;
+  onCountryChange: (code: "uk") => void;
   alertUnreadCount: number;
   onAlertClick: () => void;
 }
@@ -30,7 +30,6 @@ const VIEW_LABELS: Record<ViewType, string> = {
 
 const COUNTRIES = [
   { code: "uk" as const, label: "\u{1F1EC}\u{1F1E7} United Kingdom" },
-  { code: "de" as const, label: "\u{1F1E9}\u{1F1EA} Germany" },
 ];
 
 const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange, alertUnreadCount, onAlertClick }: HeaderProps) => (
@@ -72,7 +71,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
     <AlertBadge unreadCount={alertUnreadCount} onClick={onAlertClick} />
     <select
       value={activeCountry}
-      onChange={(e) => onCountryChange(e.target.value as "uk" | "de")}
+      onChange={(e) => onCountryChange(e.target.value as "uk")}
       className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}
     >
       {COUNTRIES.map((c) => (

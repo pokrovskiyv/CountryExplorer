@@ -62,17 +62,7 @@ describe("Country Configs", () => {
     expect(Object.keys(COUNTRY_CONFIGS.uk.regionCounts).length).toBe(12);
   });
 
-  it("DE config has all required fields and consistent data", () => {
-    validateConfig(COUNTRY_CONFIGS.de);
-  });
-
-  it("DE has 16 regions", () => {
-    expect(Object.keys(COUNTRY_CONFIGS.de.regionCounts).length).toBe(16);
-  });
-
-  it("both countries share the same brand set", () => {
-    const ukBrands = Object.keys(COUNTRY_CONFIGS.uk.brands).sort();
-    const deBrands = Object.keys(COUNTRY_CONFIGS.de.brands).sort();
-    expect(ukBrands).toEqual(deBrands);
+  it("COUNTRY_CONFIGS contains only UK", () => {
+    expect(Object.keys(COUNTRY_CONFIGS)).toEqual(["uk"]);
   });
 });

@@ -6,7 +6,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js"
-import { UK_CONFIG, DE_CONFIG } from "../src/data/country-configs"
+import { UK_CONFIG } from "../src/data/country-configs"
 import type { CountryConfig } from "../src/contexts/CountryContext"
 
 const SUPABASE_URL = process.env.SUPABASE_URL
@@ -112,7 +112,6 @@ async function main() {
   console.log("Starting data seed...")
 
   await seedCountry(UK_CONFIG)
-  await seedCountry(DE_CONFIG)
 
   console.log("\nSeed complete!")
 }

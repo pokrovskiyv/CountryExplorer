@@ -72,15 +72,6 @@ describe("fetchCountryConfig", () => {
     expect(typeof ukConfig.cityToRegion).toBe("object")
   })
 
-  it("returns correct shape for DE config", async () => {
-    const { COUNTRY_CONFIGS } = await import("@/data/country-configs")
-    const deConfig = COUNTRY_CONFIGS["de"]
-
-    expect(deConfig).toBeDefined()
-    expect(deConfig.code).toBe("de")
-    expect(deConfig.name).toBe("Germany")
-    expect(Object.keys(deConfig.population)).toHaveLength(16)
-  })
 })
 
 describe("fetchCountryConfig function", () => {
@@ -113,17 +104,6 @@ describe("static config fallback", () => {
       expect(uk.brandPoints[brandName]).toBeDefined()
       expect(Array.isArray(uk.brandPoints[brandName])).toBe(true)
       expect(uk.brandPoints[brandName].length).toBeGreaterThan(0)
-    }
-  })
-
-  it("DE config has all required brand points", async () => {
-    const { COUNTRY_CONFIGS } = await import("@/data/country-configs")
-    const de = COUNTRY_CONFIGS["de"]
-
-    for (const brandName of Object.keys(de.brands)) {
-      expect(de.brandPoints[brandName]).toBeDefined()
-      expect(Array.isArray(de.brandPoints[brandName])).toBe(true)
-      expect(de.brandPoints[brandName].length).toBeGreaterThan(0)
     }
   })
 

@@ -18,13 +18,12 @@ import { COUNTRY_CONFIGS } from "@/data/country-configs";
 import { useCountryData } from "@/hooks/useCountryData";
 import { useAlerts } from "@/hooks/useAlerts";
 
-type CountryCode = "uk" | "de";
+type CountryCode = "uk";
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
 
 const TOPO_URLS: Record<CountryCode, string> = {
   uk: "/uk-topo.json",
-  de: "/de-topo.json",
 };
 
 const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar"]);
