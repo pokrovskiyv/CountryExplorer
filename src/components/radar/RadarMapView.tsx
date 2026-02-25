@@ -5,6 +5,7 @@ import * as topojson from "topojson-client";
 import { useCountry } from "@/contexts/CountryContext";
 import type { RegionScore } from "@/lib/expansion-scoring";
 import { interpolateRadarColor, getTierColor } from "@/lib/opportunity-colors";
+import { useResolvedTheme, getTileUrls } from "@/hooks/useResolvedTheme";
 
 interface RadarMapViewProps {
   readonly topoData: any;
@@ -27,6 +28,9 @@ const RadarMapView = ({
   const labelLayerRef = useRef<L.LayerGroup | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const baseTileRef = useRef<L.TileLayer | null>(null);
+  const labelTileRef = useRef<L.TileLayer | null>(null);
+  const resolvedTheme = useResolvedTheme();
 
   // Memoize score lookups to avoid re-creation on every render
   const scoreMap = useMemo(
@@ -47,12 +51,13 @@ const RadarMapView = ({
       attributionControl: false,
     }).setView(mapCenter, mapZoom);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png", {
+    const urls = getTileUrls(resolvedTheme);
+    baseTileRef.current = L.tileLayer(urls.base, {
       subdomains: "abcd",
       maxZoom: 18,
     }).addTo(map);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png", {
+    labelTileRef.current = L.tileLayer(urls.labels, {
       subdomains: "abcd",
       maxZoom: 18,
       pane: "shadowPane",
@@ -73,6 +78,13 @@ const RadarMapView = ({
       mapRef.current = null;
     };
   }, []);
+
+  // Swap tile URLs when theme changes
+  useEffect(() => {
+    const urls = getTileUrls(resolvedTheme);
+    if (baseTileRef.current) baseTileRef.current.setUrl(urls.base);
+    if (labelTileRef.current) labelTileRef.current.setUrl(urls.labels);
+  }, [resolvedTheme]);
 
   // Add/update region choropleth + labels
   useEffect(() => {

@@ -4,6 +4,7 @@ import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import * as topojson from "topojson-client";
 import { useCountry } from "@/contexts/CountryContext";
+import { useResolvedTheme, getTileUrls } from "@/hooks/useResolvedTheme";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
@@ -40,6 +41,9 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
   const containerRef = useRef<HTMLDivElement>(null);
   const tooltipRef = useRef<HTMLDivElement>(null);
   const heatLayerRef = useRef<L.Layer | null>(null);
+  const baseTileRef = useRef<L.TileLayer | null>(null);
+  const labelTileRef = useRef<L.TileLayer | null>(null);
+  const resolvedTheme = useResolvedTheme();
 
   const getMetricValue = useCallback((props: any) => {
     if (metric === "total") {
@@ -80,12 +84,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       preferCanvas: true,
     }).setView(mapCenter, mapZoom);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png", {
+    const urls = getTileUrls(resolvedTheme);
+    baseTileRef.current = L.tileLayer(urls.base, {
       subdomains: "abcd",
       maxZoom: 18,
     }).addTo(map);
 
-    L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_only_labels/{z}/{x}/{y}@2x.png", {
+    labelTileRef.current = L.tileLayer(urls.labels, {
       subdomains: "abcd",
       maxZoom: 18,
       pane: "shadowPane",
@@ -111,6 +116,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       mapRef.current = null;
     };
   }, []);
+
+  // Swap tile URLs when theme changes
+  useEffect(() => {
+    const urls = getTileUrls(resolvedTheme);
+    if (baseTileRef.current) baseTileRef.current.setUrl(urls.base);
+    if (labelTileRef.current) labelTileRef.current.setUrl(urls.labels);
+  }, [resolvedTheme]);
 
   // Add/update region layer when topoData loads
   useEffect(() => {
