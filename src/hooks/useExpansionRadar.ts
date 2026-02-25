@@ -5,6 +5,7 @@ import {
   type OpportunityWeights,
   type RegionScore,
 } from "@/lib/expansion-scoring";
+import type { BrandInfo } from "@/contexts/CountryContext";
 
 export interface ExpansionRadarState {
   readonly targetBrand: string;
@@ -19,15 +20,21 @@ export interface ExpansionRadarState {
   readonly getRegionScore: (region: string) => RegionScore | undefined;
 }
 
-export function useExpansionRadar(active: boolean): ExpansionRadarState {
+interface ScoringData {
+  readonly brands: Record<string, BrandInfo>;
+  readonly regionCounts: Record<string, Record<string, number>>;
+  readonly population: Record<string, number>;
+}
+
+export function useExpansionRadar(active: boolean, data: ScoringData): ExpansionRadarState {
   const [targetBrand, setTargetBrand] = useState("Subway");
   const [weights, setWeights] = useState<OpportunityWeights>(DEFAULT_WEIGHTS);
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
 
   const scores = useMemo(() => {
     if (!active) return [];
-    return computeAllRegionScores(targetBrand, weights);
-  }, [targetBrand, weights, active]);
+    return computeAllRegionScores(targetBrand, weights, data);
+  }, [targetBrand, weights, active, data]);
 
   const topOpportunities = useMemo(() => scores.slice(0, 3), [scores]);
 

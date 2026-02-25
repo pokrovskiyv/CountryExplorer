@@ -8,6 +8,8 @@ interface HeaderProps {
   activeView: ViewType;
   onViewChange: (view: ViewType) => void;
   contentRef?: React.RefObject<HTMLDivElement>;
+  activeCountry: string;
+  onCountryChange: (code: "uk" | "de") => void;
 }
 
 const GlobeIcon = () => (
@@ -23,7 +25,12 @@ const VIEW_LABELS: Record<ViewType, string> = {
   radar: "Radar",
 };
 
-const Header = ({ activeView, onViewChange, contentRef }: HeaderProps) => (
+const COUNTRIES = [
+  { code: "uk" as const, label: "\u{1F1EC}\u{1F1E7} United Kingdom" },
+  { code: "de" as const, label: "\u{1F1E9}\u{1F1EA} Germany" },
+];
+
+const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange }: HeaderProps) => (
   <div className="h-14 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
     <Link to="/" className="flex items-center gap-2 text-lg font-bold text-foreground">
       <GlobeIcon />
@@ -59,10 +66,14 @@ const Header = ({ activeView, onViewChange, contentRef }: HeaderProps) => (
         Export PDF
       </button>
     )}
-    <select className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}>
-      <option>🇬🇧 United Kingdom</option>
-      <option disabled>🇩🇪 Germany (coming soon)</option>
-      <option disabled>🇫🇷 France (coming soon)</option>
+    <select
+      value={activeCountry}
+      onChange={(e) => onCountryChange(e.target.value as "uk" | "de")}
+      className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}
+    >
+      {COUNTRIES.map((c) => (
+        <option key={c.code} value={c.code}>{c.label}</option>
+      ))}
     </select>
   </div>
 );

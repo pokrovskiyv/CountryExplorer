@@ -2,7 +2,7 @@ import { useEffect, useRef, useMemo } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import * as topojson from "topojson-client";
-import { BRANDS, REGION_CENTROIDS } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import type { RegionScore } from "@/lib/expansion-scoring";
 import { interpolateRadarColor, getTierColor } from "@/lib/opportunity-colors";
 
@@ -21,6 +21,7 @@ const RadarMapView = ({
   onRegionSelect,
   targetBrand,
 }: RadarMapViewProps) => {
+  const { brands: BRANDS, regionCentroids: REGION_CENTROIDS, mapCenter, mapZoom } = useCountry();
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
   const labelLayerRef = useRef<L.LayerGroup | null>(null);
@@ -44,7 +45,7 @@ const RadarMapView = ({
     const map = L.map(containerRef.current, {
       zoomControl: true,
       attributionControl: false,
-    }).setView([54.5, -2], 6);
+    }).setView(mapCenter, mapZoom);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png", {
       subdomains: "abcd",

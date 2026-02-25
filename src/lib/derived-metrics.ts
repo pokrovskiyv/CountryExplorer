@@ -1,4 +1,3 @@
-import { REGION_COUNTS, POPULATION } from "@/data/uk-data";
 import type { RegionScore } from "./expansion-scoring";
 
 export interface DerivedMetrics {
@@ -11,20 +10,24 @@ export interface DerivedMetrics {
   readonly shareDelta: number;
 }
 
-function computeNationalAverages(brand: string): {
+function computeNationalAverages(
+  brand: string,
+  regionCounts: Record<string, Record<string, number>>,
+  population: Record<string, number>
+): {
   avgBrandShare: number;
   avgQsrDensity: number;
   avgBrandPer100k: number;
 } {
-  const regions = Object.keys(REGION_COUNTS);
+  const regions = Object.keys(regionCounts);
   let totalBrand = 0;
   let totalQsr = 0;
   let totalPop = 0;
 
   for (const region of regions) {
-    totalBrand += REGION_COUNTS[region][brand] || 0;
-    totalQsr += REGION_COUNTS[region].total || 0;
-    totalPop += POPULATION[region] || 0;
+    totalBrand += regionCounts[region][brand] || 0;
+    totalQsr += regionCounts[region].total || 0;
+    totalPop += population[region] || 0;
   }
 
   return {
@@ -36,15 +39,17 @@ function computeNationalAverages(brand: string): {
 
 export function computeDerivedMetrics(
   score: RegionScore,
-  targetBrand: string
+  targetBrand: string,
+  regionCounts: Record<string, Record<string, number>>,
+  population: Record<string, number>
 ): DerivedMetrics {
-  const { brandCount, totalCount, population } = score;
+  const { brandCount, totalCount, population: pop } = score;
   const { avgBrandShare, avgQsrDensity, avgBrandPer100k } =
-    computeNationalAverages(targetBrand);
+    computeNationalAverages(targetBrand, regionCounts, population);
 
   const brandShare = totalCount > 0 ? (brandCount / totalCount) * 100 : 0;
-  const qsrPer100k = population > 0 ? (totalCount / population) * 100 : 0;
-  const brandPer100k = population > 0 ? (brandCount / population) * 100 : 0;
+  const qsrPer100k = pop > 0 ? (totalCount / pop) * 100 : 0;
+  const brandPer100k = pop > 0 ? (brandCount / pop) * 100 : 0;
 
   return {
     brandShare,

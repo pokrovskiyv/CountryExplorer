@@ -1,4 +1,4 @@
-import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import type { BrandInfo } from "@/contexts/CountryContext"
 
 // --- Types ---
 
@@ -35,10 +35,15 @@ export const DEFAULT_WEIGHTS: OpportunityWeights = {
   densityHeadroom: 20,
 };
 
-// --- Helpers ---
+// --- Data params for pure functions ---
 
-const brandNames = Object.keys(BRANDS);
-const regionNames = Object.keys(REGION_COUNTS);
+interface ScoringData {
+  readonly brands: Record<string, BrandInfo>;
+  readonly regionCounts: Record<string, Record<string, number>>;
+  readonly population: Record<string, number>;
+}
+
+// --- Helpers ---
 
 function clamp(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -46,15 +51,18 @@ function clamp(value: number, min: number, max: number): number {
 
 // --- Sub-score functions (all return 0-100) ---
 
-/** How much lower is this brand's density vs national average? Higher = more opportunity */
-export function computePenetrationGap(brand: string): Record<string, number> {
+export function computePenetrationGap(
+  brand: string,
+  data: ScoringData
+): Record<string, number> {
+  const regionNames = Object.keys(data.regionCounts);
   const densities: Record<string, number> = {};
   let totalBrandCount = 0;
   let totalPopulation = 0;
 
   for (const region of regionNames) {
-    const count = REGION_COUNTS[region][brand] || 0;
-    const pop = POPULATION[region] || 1;
+    const count = data.regionCounts[region][brand] || 0;
+    const pop = data.population[region] || 1;
     densities[region] = count / pop;
     totalBrandCount += count;
     totalPopulation += pop;
@@ -74,25 +82,27 @@ export function computePenetrationGap(brand: string): Record<string, number> {
   return scores;
 }
 
-/** Are competitors present? Validates market demand. Higher = more competitors = more validated */
-export function computeCompetitorPresence(brand: string): Record<string, number> {
+export function computeCompetitorPresence(
+  brand: string,
+  data: ScoringData
+): Record<string, number> {
+  const brandNames = Object.keys(data.brands);
+  const regionNames = Object.keys(data.regionCounts);
   const otherBrands = brandNames.filter((b) => b !== brand);
 
-  // Single pass: compute all competitor densities and find max
   const competitorDensities: Record<string, number> = {};
   let maxCompDensity = 0;
 
   for (const region of regionNames) {
-    const pop = POPULATION[region] || 1;
+    const pop = data.population[region] || 1;
     let density = 0;
     for (const other of otherBrands) {
-      density += (REGION_COUNTS[region][other] || 0) / pop;
+      density += (data.regionCounts[region][other] || 0) / pop;
     }
     competitorDensities[region] = density;
     if (density > maxCompDensity) maxCompDensity = density;
   }
 
-  // Normalize against max
   const scores: Record<string, number> = {};
   for (const region of regionNames) {
     scores[region] = maxCompDensity > 0
@@ -102,26 +112,26 @@ export function computeCompetitorPresence(brand: string): Record<string, number>
   return scores;
 }
 
-/** Larger population = larger addressable market. Normalized across regions */
-export function computePopulationScore(): Record<string, number> {
-  const maxPop = Math.max(...regionNames.map((r) => POPULATION[r] || 0));
+export function computePopulationScore(data: ScoringData): Record<string, number> {
+  const regionNames = Object.keys(data.regionCounts);
+  const maxPop = Math.max(...regionNames.map((r) => data.population[r] || 0));
   const scores: Record<string, number> = {};
   for (const region of regionNames) {
     scores[region] = maxPop > 0
-      ? clamp(((POPULATION[region] || 0) / maxPop) * 100, 0, 100)
+      ? clamp(((data.population[region] || 0) / maxPop) * 100, 0, 100)
       : 0;
   }
   return scores;
 }
 
-/** Overall market under-saturation. Higher = fewer total QSR per capita */
-export function computeDensityHeadroom(): Record<string, number> {
+export function computeDensityHeadroom(data: ScoringData): Record<string, number> {
+  const regionNames = Object.keys(data.regionCounts);
   const densities: Record<string, number> = {};
   let maxDensity = 0;
 
   for (const region of regionNames) {
-    const total = REGION_COUNTS[region].total || 0;
-    const pop = POPULATION[region] || 1;
+    const total = data.regionCounts[region].total || 0;
+    const pop = data.population[region] || 1;
     densities[region] = total / pop;
     if (densities[region] > maxDensity) maxDensity = densities[region];
   }
@@ -165,12 +175,14 @@ export function getScoreTier(score: number): ScoreTier {
 
 export function computeAllRegionScores(
   targetBrand: string,
-  weights: OpportunityWeights
+  weights: OpportunityWeights,
+  data: ScoringData
 ): readonly RegionScore[] {
-  const penetrationScores = computePenetrationGap(targetBrand);
-  const competitorScores = computeCompetitorPresence(targetBrand);
-  const populationScores = computePopulationScore();
-  const headroomScores = computeDensityHeadroom();
+  const regionNames = Object.keys(data.regionCounts);
+  const penetrationScores = computePenetrationGap(targetBrand, data);
+  const competitorScores = computeCompetitorPresence(targetBrand, data);
+  const populationScores = computePopulationScore(data);
+  const headroomScores = computeDensityHeadroom(data);
 
   const results: RegionScore[] = regionNames.map((region) => {
     const breakdown: ScoreBreakdown = {
@@ -187,9 +199,9 @@ export function computeAllRegionScores(
       composite,
       tier: getScoreTier(composite),
       breakdown,
-      brandCount: REGION_COUNTS[region][targetBrand] || 0,
-      totalCount: REGION_COUNTS[region].total || 0,
-      population: POPULATION[region] || 0,
+      brandCount: data.regionCounts[region][targetBrand] || 0,
+      totalCount: data.regionCounts[region].total || 0,
+      population: data.population[region] || 0,
     };
   });
 

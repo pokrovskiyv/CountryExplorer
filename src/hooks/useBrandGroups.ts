@@ -1,5 +1,5 @@
 import { useState, useCallback } from "react";
-import { BRANDS } from "@/data/uk-data";
+import type { BrandInfo } from "@/contexts/CountryContext";
 
 export interface BrandGroup {
   readonly id: string;
@@ -10,27 +10,28 @@ export interface BrandGroup {
 
 const STORAGE_KEY = "getplace-brand-groups";
 
-const allBrandKeys = Object.keys(BRANDS);
+function buildDefaultGroups(brands: Record<string, BrandInfo>): readonly BrandGroup[] {
+  const allBrandKeys = Object.keys(brands);
+  return [
+    { id: "all", name: "All Brands", brands: allBrandKeys, isDefault: true },
+    { id: "pizza", name: "Pizza", brands: ["Dominos", "PapaJohns"], isDefault: true },
+    {
+      id: "chicken-burgers",
+      name: "Chicken & Burgers",
+      brands: ["KFC", "McDonalds", "Nandos"],
+      isDefault: true,
+    },
+  ];
+}
 
-const DEFAULT_GROUPS: readonly BrandGroup[] = [
-  { id: "all", name: "All Brands", brands: allBrandKeys, isDefault: true },
-  { id: "pizza", name: "Pizza", brands: ["Dominos", "PapaJohns"], isDefault: true },
-  {
-    id: "chicken-burgers",
-    name: "Chicken & Burgers",
-    brands: ["KFC", "McDonalds", "Nandos"],
-    isDefault: true,
-  },
-];
-
-function loadGroups(): readonly BrandGroup[] {
+function loadGroups(defaults: readonly BrandGroup[]): readonly BrandGroup[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return DEFAULT_GROUPS;
+    if (!raw) return defaults;
     const parsed = JSON.parse(raw) as BrandGroup[];
-    return [...DEFAULT_GROUPS, ...parsed.filter((g) => !g.isDefault)];
+    return [...defaults, ...parsed.filter((g) => !g.isDefault)];
   } catch {
-    return DEFAULT_GROUPS;
+    return defaults;
   }
 }
 
@@ -39,8 +40,10 @@ function saveCustomGroups(groups: readonly BrandGroup[]): void {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(custom));
 }
 
-export function useBrandGroups() {
-  const [groups, setGroups] = useState<readonly BrandGroup[]>(loadGroups);
+export function useBrandGroups(brands: Record<string, BrandInfo>) {
+  const [groups, setGroups] = useState<readonly BrandGroup[]>(() =>
+    loadGroups(buildDefaultGroups(brands))
+  );
 
   const createGroup = useCallback((name: string, brands: readonly string[]) => {
     const newGroup: BrandGroup = {

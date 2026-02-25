@@ -1,16 +1,20 @@
-import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import type { BrandInfo } from "@/contexts/CountryContext"
 
-export function exportTableAsCSV(): void {
-  const brands = Object.keys(BRANDS);
+export function exportTableAsCSV(
+  brands: Record<string, BrandInfo>,
+  regionCounts: Record<string, Record<string, number>>,
+  population: Record<string, number>
+): void {
+  const brandNames = Object.keys(brands);
   const BOM = "\uFEFF";
   const sep = ",";
 
-  const headers = ["Region", "Total", "Population", "Per 100k", ...brands];
-  const rows = Object.entries(REGION_COUNTS).map(([name, data]) => {
-    const pop = POPULATION[name] || 0;
+  const headers = ["Region", "Total", "Population", "Per 100k", ...brandNames];
+  const rows = Object.entries(regionCounts).map(([name, data]) => {
+    const pop = population[name] || 0;
     const total = data.total || 0;
     const density = pop > 0 ? ((total / pop) * 100).toFixed(1) : "0";
-    const brandCols = brands.map((b) => String(data[b] || 0));
+    const brandCols = brandNames.map((b) => String(data[b] || 0));
     return [name, String(total), String(pop * 1000), density, ...brandCols];
   });
 

@@ -1,5 +1,5 @@
 import { TrendingUp, TrendingDown } from "lucide-react";
-import { BRANDS } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import type { RegionScore } from "@/lib/expansion-scoring";
 import { computeDerivedMetrics, formatDelta } from "@/lib/derived-metrics";
 import { formatPopulation } from "@/lib/insight-generator";
@@ -25,7 +25,8 @@ interface TileData {
 }
 
 const StatTiles = ({ score, targetBrand }: StatTilesProps) => {
-  const metrics = computeDerivedMetrics(score, targetBrand);
+  const { brands: BRANDS, regionCounts, population } = useCountry();
+  const metrics = computeDerivedMetrics(score, targetBrand, regionCounts, population);
   const brandColor = BRANDS[targetBrand]?.color || "#3b82f6";
 
   const tiles: readonly TileData[] = [

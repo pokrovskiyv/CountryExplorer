@@ -1,4 +1,4 @@
-import { BRANDS } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import type { CityBrandData } from "@/lib/city-aggregation";
 
 interface CityBreakdownProps {
@@ -7,6 +7,8 @@ interface CityBreakdownProps {
 }
 
 const CityBreakdown = ({ cities, selectedBrands }: CityBreakdownProps) => {
+  const { brands: BRANDS } = useCountry();
+
   if (cities.length === 0) {
     return (
       <p className="text-muted-foreground text-xs">

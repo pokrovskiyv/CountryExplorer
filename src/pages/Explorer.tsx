@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import Header from "@/components/explorer/Header";
 import type { ViewType } from "@/components/explorer/Header";
 import Sidebar from "@/components/explorer/Sidebar";
@@ -12,10 +12,17 @@ import { useExpansionRadar } from "@/hooks/useExpansionRadar";
 import { useBrandGroups } from "@/hooks/useBrandGroups";
 import { useTimeline } from "@/hooks/useTimeline";
 import TimelineSlider from "@/components/explorer/TimelineSlider";
-import { BRANDS } from "@/data/uk-data";
+import { CountryProvider } from "@/contexts/CountryContext";
+import { COUNTRY_CONFIGS } from "@/data/country-configs";
 
+type CountryCode = "uk" | "de";
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
+
+const TOPO_URLS: Record<CountryCode, string> = {
+  uk: "/uk-topo.json",
+  de: "/de-topo.json",
+};
 
 const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar"]);
 
@@ -25,8 +32,12 @@ function readViewFromHash(): ViewType {
 }
 
 const Explorer = () => {
+  const [activeCountry, setActiveCountry] = useState<CountryCode>("uk");
   const [activeView, setActiveView] = useState<ViewType>(readViewFromHash);
-  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(new Set(Object.keys(BRANDS)));
+  const countryConfig = COUNTRY_CONFIGS[activeCountry];
+  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(
+    () => new Set(Object.keys(countryConfig.brands))
+  );
   const [metric, setMetric] = useState<Metric>("total");
   const [display, setDisplay] = useState<Display>("choropleth");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
@@ -43,29 +54,46 @@ const Explorer = () => {
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
 
-  const radar = useExpansionRadar(activeView === "radar");
-  const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups();
+  const scoringData = useMemo(() => ({
+    brands: countryConfig.brands,
+    regionCounts: countryConfig.regionCounts,
+    population: countryConfig.population,
+  }), [countryConfig]);
+
+  const radar = useExpansionRadar(activeView === "radar", scoringData);
+  const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups(countryConfig.brands);
   const timeline = useTimeline();
 
   const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
     setSelectedBrands(new Set(brands));
   }, []);
 
-  // Load TopoJSON from prototype HTML
+  // Load TopoJSON per country
   useEffect(() => {
-    fetch("/prototype.html")
-      .then((r) => r.text())
-      .then((html) => {
-        const match = html.match(/const TOPO_DATA = (\{.*?\});[\r\n]/s);
-        if (match) {
-          try {
-            setTopoData(JSON.parse(match[1]));
-          } catch (e) {
-            console.error("Failed to parse TopoJSON", e);
-          }
+    setTopoData(null);
+    fetch(TOPO_URLS[activeCountry])
+      .then((r) => r.json())
+      .then(setTopoData)
+      .catch((err) => {
+        // Fallback: try prototype.html for UK
+        if (activeCountry === "uk") {
+          fetch("/prototype.html")
+            .then((r) => r.text())
+            .then((html) => {
+              const match = html.match(/const TOPO_DATA = (\{.*?\});[\r\n]/s);
+              if (match) setTopoData(JSON.parse(match[1]));
+            })
+            .catch(() => {});
         }
-      })
-      .catch(console.error);
+      });
+  }, [activeCountry]);
+
+  // Reset state when country changes
+  const handleCountryChange = useCallback((code: CountryCode) => {
+    const config = COUNTRY_CONFIGS[code];
+    setActiveCountry(code);
+    setSelectedBrands(new Set(Object.keys(config.brands)));
+    setSelectedRegion(null);
   }, []);
 
   const handleToggleBrand = useCallback((brand: string, checked: boolean) => {
@@ -95,84 +123,92 @@ const Explorer = () => {
   }, [radar.setSelectedRegion]);
 
   return (
-    <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
-      <Header activeView={activeView} onViewChange={setActiveView} contentRef={contentRef} />
-      {activeView !== "radar" && (
-        <TimelineSlider
-          currentMonth={timeline.currentMonth}
-          currentDate={timeline.currentDate}
-          isPlaying={timeline.isPlaying}
-          onMonthChange={timeline.setCurrentMonth}
-          onTogglePlay={timeline.togglePlay}
+    <CountryProvider config={countryConfig}>
+      <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
+        <Header
+          activeView={activeView}
+          onViewChange={setActiveView}
+          contentRef={contentRef}
+          activeCountry={activeCountry}
+          onCountryChange={handleCountryChange}
         />
-      )}
-      <div ref={contentRef} className="flex flex-1 overflow-hidden">
-        {activeView === "radar" ? (
-          <>
-            <RadarSidebar
-              targetBrand={radar.targetBrand}
-              onBrandChange={radar.setTargetBrand}
-              weights={radar.weights}
-              onWeightsChange={radar.setWeights}
-              onResetWeights={radar.resetWeights}
-              scores={radar.scores}
-              topOpportunities={radar.topOpportunities}
-              selectedRegion={radar.selectedRegion}
-              onSelectRegion={handleRadarRegionSelect}
-            />
-            <RadarMapView
-              topoData={topoData}
-              scores={radar.scores}
-              selectedRegion={radar.selectedRegion}
-              onRegionSelect={handleRadarRegionSelect}
-              targetBrand={radar.targetBrand}
-            />
-            <RadarPanel
-              targetBrand={radar.targetBrand}
-              selectedScore={radar.selectedRegion ? radar.getRegionScore(radar.selectedRegion) : undefined}
-              topOpportunities={radar.topOpportunities}
-              onSelectRegion={handleRadarRegionSelect}
-              onClose={handleRadarClosePanel}
-              weights={radar.weights}
-              allScores={radar.scores}
-            />
-          </>
-        ) : (
-          <>
-            <Sidebar
-              selectedBrands={selectedBrands}
-              onToggleBrand={handleToggleBrand}
-              metric={metric}
-              onMetricChange={setMetric}
-              display={display}
-              onDisplayChange={setDisplay}
-              brandGroups={brandGroups}
-              onApplyBrandGroup={handleApplyBrandGroup}
-              onCreateBrandGroup={createBrandGroup}
-              onDeleteBrandGroup={deleteBrandGroup}
-            />
-            {activeView === "map" ? (
-              <>
-                <MapView
-                  selectedBrands={selectedBrands}
-                  metric={metric}
-                  display={display}
-                  selectedRegion={selectedRegion}
-                  onRegionSelect={handleRegionSelect}
-                  topoData={topoData}
-                  visibleIndices={timeline.visibleIndices}
-                />
-                <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
-              </>
-            ) : (
-              <div className="flex-1 overflow-auto">
-                <TableView onRegionSelect={handleRegionSelect} />
-              </div>
-            )}
-          </>
+        {activeView !== "radar" && (
+          <TimelineSlider
+            currentMonth={timeline.currentMonth}
+            currentDate={timeline.currentDate}
+            isPlaying={timeline.isPlaying}
+            onMonthChange={timeline.setCurrentMonth}
+            onTogglePlay={timeline.togglePlay}
+          />
         )}
+        <div ref={contentRef} className="flex flex-1 overflow-hidden">
+          {activeView === "radar" ? (
+            <>
+              <RadarSidebar
+                targetBrand={radar.targetBrand}
+                onBrandChange={radar.setTargetBrand}
+                weights={radar.weights}
+                onWeightsChange={radar.setWeights}
+                onResetWeights={radar.resetWeights}
+                scores={radar.scores}
+                topOpportunities={radar.topOpportunities}
+                selectedRegion={radar.selectedRegion}
+                onSelectRegion={handleRadarRegionSelect}
+              />
+              <RadarMapView
+                topoData={topoData}
+                scores={radar.scores}
+                selectedRegion={radar.selectedRegion}
+                onRegionSelect={handleRadarRegionSelect}
+                targetBrand={radar.targetBrand}
+              />
+              <RadarPanel
+                targetBrand={radar.targetBrand}
+                selectedScore={radar.selectedRegion ? radar.getRegionScore(radar.selectedRegion) : undefined}
+                topOpportunities={radar.topOpportunities}
+                onSelectRegion={handleRadarRegionSelect}
+                onClose={handleRadarClosePanel}
+                weights={radar.weights}
+                allScores={radar.scores}
+              />
+            </>
+          ) : (
+            <>
+              <Sidebar
+                selectedBrands={selectedBrands}
+                onToggleBrand={handleToggleBrand}
+                metric={metric}
+                onMetricChange={setMetric}
+                display={display}
+                onDisplayChange={setDisplay}
+                brandGroups={brandGroups}
+                onApplyBrandGroup={handleApplyBrandGroup}
+                onCreateBrandGroup={createBrandGroup}
+                onDeleteBrandGroup={deleteBrandGroup}
+              />
+              {activeView === "map" ? (
+                <>
+                  <MapView
+                    selectedBrands={selectedBrands}
+                    metric={metric}
+                    display={display}
+                    selectedRegion={selectedRegion}
+                    onRegionSelect={handleRegionSelect}
+                    topoData={topoData}
+                    visibleIndices={timeline.visibleIndices}
+                  />
+                  <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
+                </>
+              ) : (
+                <div className="flex-1 overflow-auto">
+                  <TableView onRegionSelect={handleRegionSelect} />
+                </div>
+              )}
+            </>
+          )}
+        </div>
       </div>
-    </div>
+    </CountryProvider>
   );
 };
 

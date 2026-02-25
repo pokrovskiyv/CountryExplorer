@@ -1,4 +1,4 @@
-import { BRANDS } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { OpportunityWeights, RegionScore } from "@/lib/expansion-scoring";
 import { getTierColor } from "@/lib/opportunity-colors";
@@ -18,8 +18,6 @@ interface RadarSidebarProps {
   readonly onSelectRegion: (region: string) => void;
 }
 
-const brandNames = Object.keys(BRANDS);
-
 const RadarSidebar = ({
   targetBrand,
   onBrandChange,
@@ -30,7 +28,11 @@ const RadarSidebar = ({
   topOpportunities,
   selectedRegion,
   onSelectRegion,
-}: RadarSidebarProps) => (
+}: RadarSidebarProps) => {
+  const { brands: BRANDS } = useCountry();
+  const brandNames = Object.keys(BRANDS);
+
+  return (
   <div className="w-80 bg-[hsl(230,25%,10%)] border-r border-border shrink-0 overflow-y-auto flex flex-col">
     {/* Target Brand Selector */}
     <div className="p-4 border-b border-border">
@@ -126,6 +128,7 @@ const RadarSidebar = ({
       />
     </div>
   </div>
-);
+  );
+};
 
 export default RadarSidebar;

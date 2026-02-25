@@ -1,4 +1,4 @@
-import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import { aggregateCitiesForRegion } from "@/lib/city-aggregation";
 import CityBreakdown from "@/components/explorer/CityBreakdown";
 import { PieChart, Pie, Cell, Legend, ResponsiveContainer } from "recharts";
@@ -10,6 +10,8 @@ interface RegionPanelProps {
 }
 
 const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
+  const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION, brandPoints, cityToRegion } = useCountry();
+
   if (!region) {
     return (
       <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">
@@ -34,7 +36,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
 
   const chartData = brands.map((b) => ({ name: b, value: data[b] || 0, color: BRANDS[b].color }));
 
-  const cities = aggregateCitiesForRegion(region, selectedBrands);
+  const cities = aggregateCitiesForRegion(region, selectedBrands, brandPoints, cityToRegion);
 
   return (
     <div className="w-[380px] bg-[hsl(230,25%,10%)] border-l border-border shrink-0 overflow-y-auto">

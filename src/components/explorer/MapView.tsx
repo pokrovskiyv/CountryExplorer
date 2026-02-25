@@ -3,7 +3,7 @@ import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import "leaflet.heat";
 import * as topojson from "topojson-client";
-import { BRANDS, REGION_COUNTS, POPULATION, BRAND_POINTS, interpolateColor } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
@@ -33,6 +33,7 @@ function getMarkerOpacity(zoom: number): number {
 }
 
 const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices }: MapViewProps) => {
+  const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION, brandPoints: BRAND_POINTS, interpolateColor, mapCenter, mapZoom } = useCountry();
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
   const pointLayersRef = useRef<Record<string, L.LayerGroup>>({});
@@ -56,7 +57,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       const total = props.total || 1;
       return ((props[brand] || 0) / total) * 100;
     }
-  }, [selectedBrands, metric]);
+  }, [selectedBrands, metric, POPULATION]);
 
   const getMaxMetric = useCallback(() => {
     if (!topoData) return 0;
@@ -77,7 +78,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       zoomControl: true,
       attributionControl: false,
       preferCanvas: true,
-    }).setView([54.5, -2], 6);
+    }).setView(mapCenter, mapZoom);
 
     L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}@2x.png", {
       subdomains: "abcd",
@@ -183,7 +184,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     }).addTo(map);
 
     regionLayerRef.current = layer;
-  }, [topoData, selectedBrands, metric, display, selectedRegion, getMetricValue, getMaxMetric, onRegionSelect]);
+  }, [topoData, selectedBrands, metric, display, selectedRegion, getMetricValue, getMaxMetric, onRegionSelect, interpolateColor, BRANDS]);
 
   // Highlight selected region
   useEffect(() => {
@@ -250,7 +251,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         map.off("zoomend", onZoomEnd);
       };
     }
-  }, [selectedBrands, display, visibleIndices]);
+  }, [selectedBrands, display, visibleIndices, BRAND_POINTS, BRANDS]);
 
   // Update heatmap layer
   useEffect(() => {
@@ -300,7 +301,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         heatLayerRef.current = null;
       }
     };
-  }, [selectedBrands, display, visibleIndices]);
+  }, [selectedBrands, display, visibleIndices, BRAND_POINTS]);
 
   // Fit bounds on selected region
   useEffect(() => {

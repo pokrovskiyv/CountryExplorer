@@ -1,4 +1,4 @@
-import { BRANDS, REGION_COUNTS, POPULATION } from "@/data/uk-data";
+import { useCountry } from "@/contexts/CountryContext";
 import BrandGroupManager from "@/components/explorer/BrandGroupManager";
 import type { BrandGroup } from "@/hooks/useBrandGroups";
 
@@ -19,6 +19,7 @@ interface SidebarProps {
 }
 
 const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup }: SidebarProps) => {
+  const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION } = useCountry();
   // Compute totals
   const totals: Record<string, number> = {};
   Object.keys(BRANDS).forEach((b) => {
@@ -118,7 +119,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
           {[
             { label: "Locations", value: totalLocations.toLocaleString() },
             { label: "Brands", value: selectedBrands.size },
-            { label: "Regions", value: 12 },
+            { label: "Regions", value: Object.keys(REGION_COUNTS).length },
             { label: "Per 100k", value: ((totalLocations / totalPop) * 100).toFixed(1) },
           ].map((s) => (
             <div key={s.label} className="bg-[hsl(230,25%,13%)] rounded-lg p-3">
