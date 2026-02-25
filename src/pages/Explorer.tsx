@@ -17,6 +17,7 @@ import { CountryProvider } from "@/contexts/CountryContext";
 import { COUNTRY_CONFIGS } from "@/data/country-configs";
 import { useCountryData } from "@/hooks/useCountryData";
 import { useAlerts } from "@/hooks/useAlerts";
+import { useAgents } from "@/hooks/useAgents";
 
 type CountryCode = "uk";
 type Metric = "total" | "density" | "share";
@@ -66,6 +67,7 @@ const Explorer = () => {
   const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups(countryConfig.brands);
   const timeline = useTimeline();
   const alerts = useAlerts(timeline.currentMonth, countryConfig);
+  const agents = useAgents(timeline.currentMonth, countryConfig);
   const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
 
   const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
@@ -135,7 +137,7 @@ const Explorer = () => {
           contentRef={contentRef}
           activeCountry={activeCountry}
           onCountryChange={handleCountryChange}
-          alertUnreadCount={alerts.unreadCount}
+          alertUnreadCount={alerts.unreadCount + agents.unreadCount}
           onAlertClick={() => setAlertsPanelOpen(true)}
         />
         <AlertsPanel
@@ -146,6 +148,9 @@ const Explorer = () => {
           onAddRule={alerts.addRule}
           onRemoveRule={alerts.removeRule}
           onMarkAllRead={alerts.markAllRead}
+          insights={agents.insights}
+          agentStatuses={agents.agentStatuses}
+          onMarkAllInsightsRead={agents.markAllRead}
         />
         {activeView !== "radar" && (
           <TimelineSlider

@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Trash2, Plus, Bell, ListChecks } from "lucide-react"
+import { Trash2, Plus, Bell, ListChecks, Bot } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -8,6 +8,11 @@ import {
 } from "@/components/ui/sheet"
 import { useCountry } from "@/contexts/CountryContext"
 import type { AlertRule, AlertEvent, AlertRuleType } from "@/lib/alert-engine"
+import type { AgentInsight, AgentId } from "@/lib/agent-engine"
+import { AGENT_DEFINITIONS } from "@/lib/agent-engine"
+import { mergeFeedItems, type FeedItem } from "@/lib/feed-types"
+import type { AgentStatus } from "@/hooks/useAgents"
+import AgentsTab from "./AgentsTab"
 
 interface AlertsPanelProps {
   readonly open: boolean
@@ -17,15 +22,81 @@ interface AlertsPanelProps {
   readonly onAddRule: (rule: Omit<AlertRule, "id">) => void
   readonly onRemoveRule: (id: string) => void
   readonly onMarkAllRead: () => void
+  readonly insights: readonly AgentInsight[]
+  readonly agentStatuses: ReadonlyMap<AgentId, AgentStatus>
+  readonly onMarkAllInsightsRead: () => void
 }
 
-type Tab = "events" | "rules"
+type Tab = "events" | "rules" | "agents"
 
 const RULE_TYPES: { value: AlertRuleType; label: string }[] = [
   { value: "threshold", label: "Threshold (count > N)" },
   { value: "change", label: "Brand enters/exits region" },
   { value: "competitor", label: "Competitor opens nearby" },
 ]
+
+const AGENT_COLOR_MAP: Record<string, string> = {
+  emerald: "text-emerald-400",
+  red: "text-red-400",
+  purple: "text-purple-400",
+}
+
+function renderFeedItem(item: FeedItem) {
+  if (item.kind === "alert") {
+    const event = item.data
+    return (
+      <div
+        key={event.id}
+        className={`p-2.5 rounded-lg border text-xs ${
+          event.read
+            ? "bg-surface-1 border-border text-muted-foreground"
+            : "bg-surface-1 border-blue-600/30 text-foreground"
+        }`}
+      >
+        <div className="flex items-center justify-between mb-1">
+          <span className={`text-[10px] uppercase font-semibold ${
+            event.type === "threshold" ? "text-amber-400" :
+            event.type === "change" ? "text-emerald-400" : "text-red-400"
+          }`}>
+            {event.type}
+          </span>
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {event.timestamp}
+          </span>
+        </div>
+        <p className="leading-relaxed">{event.message}</p>
+      </div>
+    )
+  }
+
+  const insight = item.data
+  const agent = AGENT_DEFINITIONS.find((a) => a.id === insight.agentId)
+  const colorClass = agent ? AGENT_COLOR_MAP[agent.color] || "text-blue-400" : "text-blue-400"
+
+  return (
+    <div
+      key={insight.id}
+      className={`p-2.5 rounded-lg border text-xs ${
+        insight.read
+          ? "bg-surface-1 border-border text-muted-foreground"
+          : "bg-surface-1 border-blue-600/30 text-foreground"
+      }`}
+    >
+      <div className="flex items-center justify-between mb-1">
+        <div className="flex items-center gap-1.5">
+          <Bot className={`w-3 h-3 ${colorClass}`} />
+          <span className={`text-[10px] font-semibold ${colorClass}`}>
+            {agent?.name || insight.agentId}
+          </span>
+        </div>
+        <span className="text-[10px] text-muted-foreground tabular-nums">
+          {insight.timestamp}
+        </span>
+      </div>
+      <p className="leading-relaxed">{insight.message}</p>
+    </div>
+  )
+}
 
 const AlertsPanel = ({
   open,
@@ -35,6 +106,9 @@ const AlertsPanel = ({
   onAddRule,
   onRemoveRule,
   onMarkAllRead,
+  insights,
+  agentStatuses,
+  onMarkAllInsightsRead,
 }: AlertsPanelProps) => {
   const { brands, regionCounts } = useCountry()
   const [activeTab, setActiveTab] = useState<Tab>("events")
@@ -63,20 +137,27 @@ const AlertsPanel = ({
     setShowForm(false)
   }
 
+  const handleMarkAllRead = () => {
+    onMarkAllRead()
+    onMarkAllInsightsRead()
+  }
+
   const brandNames = Object.keys(brands)
   const regionNames = Object.keys(regionCounts)
+  const feedItems = mergeFeedItems(events, insights)
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
       <SheetContent side="right" className="w-[380px] bg-surface-0 border-border text-foreground overflow-y-auto">
         <SheetHeader className="pb-3 border-b border-border">
-          <SheetTitle className="text-foreground">Alerts</SheetTitle>
+          <SheetTitle className="text-foreground">Alerts & Insights</SheetTitle>
         </SheetHeader>
 
         {/* Tab selector */}
         <div className="flex gap-1 mt-3 mb-4">
           {([
             { key: "events" as Tab, icon: Bell, label: "Events" },
+            { key: "agents" as Tab, icon: Bot, label: "Agents" },
             { key: "rules" as Tab, icon: ListChecks, label: "Rules" },
           ]).map(({ key, icon: Icon, label }) => (
             <button
@@ -96,46 +177,28 @@ const AlertsPanel = ({
 
         {activeTab === "events" && (
           <div>
-            {events.length > 0 && (
+            {feedItems.length > 0 && (
               <button
-                onClick={onMarkAllRead}
+                onClick={handleMarkAllRead}
                 className="text-[11px] text-blue-400 hover:text-blue-300 mb-3 block"
               >
                 Mark all as read
               </button>
             )}
-            {events.length === 0 ? (
+            {feedItems.length === 0 ? (
               <p className="text-muted-foreground text-xs py-4">
-                No alert events yet. Add rules and advance the timeline to generate alerts.
+                No events yet. Add rules and advance the timeline to generate alerts and insights.
               </p>
             ) : (
               <div className="space-y-2">
-                {events.map((event) => (
-                  <div
-                    key={event.id}
-                    className={`p-2.5 rounded-lg border text-xs ${
-                      event.read
-                        ? "bg-surface-1 border-border text-muted-foreground"
-                        : "bg-surface-1 border-blue-600/30 text-foreground"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className={`text-[10px] uppercase font-semibold ${
-                        event.type === "threshold" ? "text-amber-400" :
-                        event.type === "change" ? "text-emerald-400" : "text-red-400"
-                      }`}>
-                        {event.type}
-                      </span>
-                      <span className="text-[10px] text-muted-foreground tabular-nums">
-                        {event.timestamp}
-                      </span>
-                    </div>
-                    <p className="leading-relaxed">{event.message}</p>
-                  </div>
-                ))}
+                {feedItems.map((item) => renderFeedItem(item))}
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === "agents" && (
+          <AgentsTab insights={insights} agentStatuses={agentStatuses} />
         )}
 
         {activeTab === "rules" && (
