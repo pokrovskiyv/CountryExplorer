@@ -29,7 +29,7 @@ export const POPULATION: Record<string, number> = {
   "Northern Ireland": 1903,
 };
 
-// Region counts extracted from TopoJSON properties
+// Region counts derived from real GeoJSON data via point-in-polygon
 export const REGION_COUNTS: Record<string, Record<string, number>> = {
   "North East (England)": { Subway: 92, McDonalds: 63, Dominos: 45, KFC: 36, Nandos: 17, PapaJohns: 7, total: 260 },
   "North West (England)": { Subway: 293, McDonalds: 192, Dominos: 135, KFC: 121, Nandos: 51, PapaJohns: 26, total: 818 },
@@ -37,15 +37,15 @@ export const REGION_COUNTS: Record<string, Record<string, number>> = {
   "East Midlands (England)": { Subway: 154, McDonalds: 123, Dominos: 102, KFC: 64, Nandos: 22, PapaJohns: 39, total: 504 },
   "West Midlands (England)": { Subway: 213, McDonalds: 137, Dominos: 107, KFC: 93, Nandos: 36, PapaJohns: 46, total: 632 },
   "East (England)": { Subway: 190, McDonalds: 150, Dominos: 138, KFC: 88, Nandos: 42, PapaJohns: 52, total: 660 },
-  "London": { Subway: 216, McDonalds: 183, Dominos: 149, KFC: 155, Nandos: 127, PapaJohns: 84, total: 914 },
-  "South East (England)": { Subway: 285, McDonalds: 207, Dominos: 201, KFC: 143, Nandos: 78, PapaJohns: 73, total: 987 },
-  "South West (England)": { Subway: 176, McDonalds: 112, Dominos: 131, KFC: 67, Nandos: 29, PapaJohns: 21, total: 536 },
-  "Wales": { Subway: 100, McDonalds: 76, Dominos: 67, KFC: 55, Nandos: 21, PapaJohns: 10, total: 329 },
-  "Scotland": { Subway: 129, McDonalds: 100, Dominos: 168, KFC: 84, Nandos: 21, PapaJohns: 15, total: 517 },
-  "Northern Ireland": { Subway: 59, McDonalds: 50, Dominos: 4, KFC: 54, Nandos: 9, PapaJohns: 5, total: 181 },
+  "London": { Subway: 216, McDonalds: 192, Dominos: 151, KFC: 161, Nandos: 127, PapaJohns: 67, total: 914 },
+  "South East (England)": { Subway: 236, McDonalds: 197, Dominos: 217, KFC: 142, Nandos: 70, PapaJohns: 77, total: 939 },
+  "South West (England)": { Subway: 148, McDonalds: 106, Dominos: 112, KFC: 76, Nandos: 27, PapaJohns: 39, total: 508 },
+  "Wales": { Subway: 84, McDonalds: 78, Dominos: 74, KFC: 47, Nandos: 15, PapaJohns: 6, total: 304 },
+  "Scotland": { Subway: 191, McDonalds: 119, Dominos: 115, KFC: 62, Nandos: 35, PapaJohns: 18, total: 540 },
+  "Northern Ireland": { Subway: 90, McDonalds: 36, Dominos: 49, KFC: 64, Nandos: 11, PapaJohns: 1, total: 251 },
 };
 
-// Brand point coordinates — generated data distributed across UK cities
+// Brand point coordinates — real data from GeoJSON restaurant locations
 export { BRAND_POINTS } from "./brand-points";
 
 // Region centroids for map labels [lat, lng]
