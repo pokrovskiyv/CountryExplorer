@@ -29,7 +29,11 @@ const VIEW_LABELS: Record<ViewType, string> = {
 };
 
 const COUNTRIES = [
-  { code: "uk" as const, label: "\u{1F1EC}\u{1F1E7} United Kingdom" },
+  { code: "uk" as const, label: "\u{1F1EC}\u{1F1E7} United Kingdom", enabled: true },
+  { code: "de" as const, label: "\u{1F1E9}\u{1F1EA} Germany", enabled: false },
+  { code: "fr" as const, label: "\u{1F1EB}\u{1F1F7} France", enabled: false },
+  { code: "es" as const, label: "\u{1F1EA}\u{1F1F8} Spain", enabled: false },
+  { code: "it" as const, label: "\u{1F1EE}\u{1F1F9} Italy", enabled: false },
 ];
 
 const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange, alertUnreadCount, onAlertClick }: HeaderProps) => (
@@ -75,7 +79,9 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
       className={`${contentRef?.current ? "" : "ml-auto "}bg-[hsl(230,25%,13%)] border border-border text-slate-200 px-3 py-1.5 rounded-md text-[13px]`}
     >
       {COUNTRIES.map((c) => (
-        <option key={c.code} value={c.code}>{c.label}</option>
+        <option key={c.code} value={c.code} disabled={!c.enabled}>
+          {c.label}{!c.enabled ? " (coming soon)" : ""}
+        </option>
       ))}
     </select>
   </div>
