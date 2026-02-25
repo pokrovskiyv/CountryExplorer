@@ -80,7 +80,7 @@ const FactorBreakdown = ({ breakdown, weights }: FactorBreakdownProps) => {
               <div className="flex items-center gap-1.5">
                 <Tooltip>
                   <TooltipTrigger asChild>
-                    <span className="text-[11px] text-slate-300 cursor-help border-b border-dashed border-muted-foreground/40">
+                    <span className="text-[11px] text-muted-foreground cursor-help border-b border-dashed border-muted-foreground/40">
                       {label}
                     </span>
                   </TooltipTrigger>

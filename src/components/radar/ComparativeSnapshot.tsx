@@ -61,7 +61,7 @@ const ComparativeSnapshot = ({
                   }}
                 />
                 {/* Selected region label */}
-                <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-medium text-slate-300">
+                <span className="absolute top-5 left-1/2 -translate-x-1/2 whitespace-nowrap text-[9px] font-medium text-muted-foreground">
                   {shortName(score.region)} &middot; {score.composite}
                 </span>
               </div>

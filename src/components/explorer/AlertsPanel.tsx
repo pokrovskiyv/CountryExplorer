@@ -85,7 +85,7 @@ const AlertsPanel = ({
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs transition-colors border ${
                 activeTab === key
                   ? "bg-blue-600/10 border-blue-600 text-blue-400"
-                  : "bg-surface-1 border-border text-muted-foreground hover:text-slate-300"
+                  : "bg-surface-1 border-border text-muted-foreground hover:text-foreground"
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -235,7 +235,7 @@ const AlertsPanel = ({
                       }`}>
                         {rule.type}
                       </span>
-                      <span className="text-xs text-slate-300">{rule.label}</span>
+                      <span className="text-xs text-muted-foreground">{rule.label}</span>
                     </div>
                     <button
                       onClick={() => onRemoveRule(rule.id)}

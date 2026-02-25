@@ -18,7 +18,7 @@ const SLIDER_CONFIG: { key: keyof OpportunityWeights; label: string; color: stri
 
 const WeightSliders = ({ weights, onChange, onReset }: WeightSlidersProps) => (
   <Collapsible>
-    <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-[12px] text-muted-foreground hover:text-slate-300 transition-colors group">
+    <CollapsibleTrigger className="flex items-center justify-between w-full py-2 text-[12px] text-muted-foreground hover:text-foreground transition-colors group">
       <span className="uppercase tracking-wide font-medium">Adjust weights</span>
       <ChevronDown className="w-3.5 h-3.5 transition-transform group-data-[state=open]:rotate-180" />
     </CollapsibleTrigger>
@@ -27,7 +27,7 @@ const WeightSliders = ({ weights, onChange, onReset }: WeightSlidersProps) => (
         {SLIDER_CONFIG.map(({ key, label, color }) => (
           <div key={key}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[11px] text-slate-400">{label}</span>
+              <span className="text-[11px] text-muted-foreground">{label}</span>
               <span className="text-[11px] tabular-nums font-medium" style={{ color }}>
                 {weights[key]}%
               </span>
@@ -45,7 +45,7 @@ const WeightSliders = ({ weights, onChange, onReset }: WeightSlidersProps) => (
         ))}
         <button
           onClick={onReset}
-          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-slate-300 transition-colors mt-1"
+          className="flex items-center gap-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors mt-1"
         >
           <RotateCcw className="w-3 h-3" />
           Reset to defaults

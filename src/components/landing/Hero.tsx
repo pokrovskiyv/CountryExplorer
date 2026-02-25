@@ -19,7 +19,7 @@ const Hero = () => (
       </a>
       <a
         href="#features"
-        className="bg-surface-1 hover:bg-surface-2 text-slate-300 px-8 py-3.5 rounded-xl text-base font-medium border border-border transition-all"
+        className="bg-surface-1 hover:bg-surface-2 text-muted-foreground px-8 py-3.5 rounded-xl text-base font-medium border border-border transition-all"
       >
         See How It Works
       </a>

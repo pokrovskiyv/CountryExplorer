@@ -7,7 +7,7 @@ export default function ThemeToggle() {
   return (
     <button
       onClick={toggle}
-      className="flex items-center justify-center w-8 h-8 rounded-md bg-surface-1 border border-border text-muted-foreground hover:text-foreground hover:border-slate-600 transition-colors"
+      className="flex items-center justify-center w-8 h-8 rounded-md bg-surface-1 border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
       title={resolved === "dark" ? "Switch to light mode" : "Switch to dark mode"}
     >
       {resolved === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}

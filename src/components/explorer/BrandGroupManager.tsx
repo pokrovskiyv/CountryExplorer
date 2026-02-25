@@ -47,7 +47,7 @@ const BrandGroupManager = ({
           <button
             key={group.id}
             onClick={() => onApplyGroup(group.brands)}
-            className="group flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-surface-1 border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors"
+            className="group flex items-center gap-1 px-2 py-1 rounded text-[11px] bg-surface-1 border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors"
           >
             <span>{group.name}</span>
             <span className="text-[10px] opacity-60">({group.brands.length})</span>
@@ -84,7 +84,7 @@ const BrandGroupManager = ({
           </button>
           <button
             onClick={() => setShowSaveDialog(false)}
-            className="px-2 py-1 rounded text-[11px] text-muted-foreground hover:text-slate-300"
+            className="px-2 py-1 rounded text-[11px] text-muted-foreground hover:text-foreground"
           >
             Cancel
           </button>

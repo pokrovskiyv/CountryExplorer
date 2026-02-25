@@ -25,7 +25,7 @@ const CityBreakdown = ({ cities, selectedBrands }: CityBreakdownProps) => {
       {cities.map(({ city, brandCounts, total }) => (
         <div key={city} className="group">
           <div className="flex items-center justify-between mb-0.5">
-            <span className="text-xs text-slate-300 font-medium">{city}</span>
+            <span className="text-xs text-muted-foreground font-medium">{city}</span>
             <span className="text-[11px] text-muted-foreground tabular-nums">
               {total}
             </span>

@@ -66,7 +66,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
           const width = maxBrand > 0 ? (count / maxBrand) * 100 : 0;
           return (
             <div key={b} className="flex items-center gap-2 py-1.5">
-              <span className="text-xs w-20 shrink-0 text-slate-300">{b}</span>
+              <span className="text-xs w-20 shrink-0 text-muted-foreground">{b}</span>
               <div className="flex-1 h-5 bg-surface-1 rounded overflow-hidden relative">
                 <div className="h-full rounded transition-all duration-400 min-w-[2px]" style={{ width: `${width}%`, background: BRANDS[b].color }} />
               </div>

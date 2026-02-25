@@ -131,18 +131,18 @@ const RadarMapView = ({
 
               const tierColor = getTierColor(regionScore.tier);
               let html = `
-                <div class="font-semibold text-[13px] text-white mb-1.5">${feature.properties.name}</div>
+                <div class="font-semibold text-[13px] text-foreground mb-1.5">${feature.properties.name}</div>
                 <div class="flex items-center gap-2 mb-1.5">
                   <span class="text-lg font-bold tabular-nums" style="color:${tierColor}">${regionScore.composite}</span>
                   <span class="text-[11px] px-1.5 py-0.5 rounded-full font-semibold" style="color:${tierColor};background:${tierColor}20">${regionScore.tier}</span>
                 </div>
                 <div class="space-y-0.5 text-[11px]">
-                  <div class="flex justify-between"><span class="text-slate-400">Penetration Gap</span><span class="font-medium">${regionScore.breakdown.penetrationGap}</span></div>
-                  <div class="flex justify-between"><span class="text-slate-400">Competition</span><span class="font-medium">${regionScore.breakdown.competitorPresence}</span></div>
-                  <div class="flex justify-between"><span class="text-slate-400">Population</span><span class="font-medium">${regionScore.breakdown.populationScore}</span></div>
-                  <div class="flex justify-between"><span class="text-slate-400">Headroom</span><span class="font-medium">${regionScore.breakdown.densityHeadroom}</span></div>
+                  <div class="flex justify-between"><span class="text-muted-foreground">Penetration Gap</span><span class="font-medium">${regionScore.breakdown.penetrationGap}</span></div>
+                  <div class="flex justify-between"><span class="text-muted-foreground">Competition</span><span class="font-medium">${regionScore.breakdown.competitorPresence}</span></div>
+                  <div class="flex justify-between"><span class="text-muted-foreground">Population</span><span class="font-medium">${regionScore.breakdown.populationScore}</span></div>
+                  <div class="flex justify-between"><span class="text-muted-foreground">Headroom</span><span class="font-medium">${regionScore.breakdown.densityHeadroom}</span></div>
                 </div>
-                <div class="mt-1.5 pt-1.5 border-t border-surface-3 text-[11px] text-slate-400">
+                <div class="mt-1.5 pt-1.5 border-t border-surface-3 text-[11px] text-muted-foreground">
                   ${regionScore.brandCount} ${targetBrand} · ${regionScore.totalCount} total QSR
                 </div>`;
 

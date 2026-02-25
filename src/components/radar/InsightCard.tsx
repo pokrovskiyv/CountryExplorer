@@ -25,7 +25,7 @@ const InsightCard = ({ targetBrand, score }: InsightCardProps) => {
         >
           {insight.headline}
         </h4>
-        <p className="text-[12px] text-slate-300 leading-relaxed">
+        <p className="text-[12px] text-muted-foreground leading-relaxed">
           {insight.summary}
         </p>
       </div>
@@ -34,14 +34,14 @@ const InsightCard = ({ targetBrand, score }: InsightCardProps) => {
       <div className="px-3.5 pb-3.5 space-y-1.5">
         <div className="flex items-start gap-2">
           <TrendingUp size={12} className="text-emerald-400 mt-0.5 shrink-0" />
-          <span className="text-[11px] text-slate-300">
+          <span className="text-[11px] text-muted-foreground">
             <span className="text-emerald-400 font-medium">Strength:</span>{" "}
             {insight.keyStrength}
           </span>
         </div>
         <div className="flex items-start gap-2">
           <AlertTriangle size={12} className="text-amber-400 mt-0.5 shrink-0" />
-          <span className="text-[11px] text-slate-300">
+          <span className="text-[11px] text-muted-foreground">
             <span className="text-amber-400 font-medium">Risk:</span>{" "}
             {insight.keyRisk}
           </span>

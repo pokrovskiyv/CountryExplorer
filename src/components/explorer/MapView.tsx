@@ -157,7 +157,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
             if (tooltipRef.current && containerRef.current) {
               const props = feature.properties;
-              let html = `<div class="font-semibold text-[13px] text-white mb-1">${props.name}</div>`;
+              let html = `<div class="font-semibold text-[13px] text-foreground mb-1">${props.name}</div>`;
               Object.keys(BRANDS).forEach((b) => {
                 if (selectedBrands.has(b)) {
                   html += `<div class="flex items-center gap-1.5 py-0.5"><span class="w-2 h-2 rounded-full inline-block" style="background:${BRANDS[b].color}"></span>${b}: <strong>${props[b] || 0}</strong></div>`;

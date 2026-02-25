@@ -23,7 +23,7 @@ const TimelineSlider = ({
   <div className="h-10 bg-surface-0 border-b border-border flex items-center px-5 gap-3 shrink-0">
     <button
       onClick={onTogglePlay}
-      className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-2 border border-border text-slate-300 hover:text-white hover:border-slate-500 transition-colors"
+      className="flex items-center justify-center w-7 h-7 rounded-md bg-surface-1 border border-border text-foreground hover:bg-surface-2 transition-colors"
       aria-label={isPlaying ? "Pause" : "Play"}
     >
       {isPlaying ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}

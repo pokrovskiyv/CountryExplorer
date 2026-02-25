@@ -51,7 +51,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
           className={`px-4 py-2 rounded-md text-[13px] font-medium transition-colors flex items-center gap-1.5 ${
             activeView === v
               ? "bg-blue-600/10 text-blue-400"
-              : "text-muted-foreground hover:bg-surface-1 hover:text-slate-300"
+              : "text-muted-foreground hover:bg-surface-1 hover:text-foreground"
           }`}
         >
           {v === "radar" && <Crosshair className="w-3.5 h-3.5" />}
@@ -67,7 +67,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
     {contentRef?.current && (
       <button
         onClick={() => exportViewAsPDF(contentRef.current!)}
-        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-surface-1 border border-border text-muted-foreground hover:text-slate-300 hover:border-slate-600 transition-colors ml-auto"
+        className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs bg-surface-1 border border-border text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors ml-auto"
       >
         <FileDown className="w-3.5 h-3.5" />
         Export PDF
