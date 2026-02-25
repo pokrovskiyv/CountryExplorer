@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
+import EarlyAccessModal from "./EarlyAccessModal";
 
 const GlobeIcon = () => (
   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="w-7 h-7 text-blue-400">
@@ -7,26 +9,32 @@ const GlobeIcon = () => (
   </svg>
 );
 
-const Navbar = () => (
-  <nav className="fixed top-0 left-0 right-0 z-50 bg-surface-deep/80 backdrop-blur-xl border-b border-border">
-    <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
-      <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground">
-        <GlobeIcon />
-        Getplace
-      </Link>
-      <div className="flex items-center gap-3">
-        <Link to="/explorer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-          Try Explorer →
+const Navbar = () => {
+  const [modalOpen, setModalOpen] = useState(false);
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-50 bg-surface-deep/80 backdrop-blur-xl border-b border-border">
+      <div className="max-w-[1200px] mx-auto px-6 py-4 flex items-center justify-between">
+        <Link to="/" className="flex items-center gap-2 text-xl font-bold text-foreground">
+          <GlobeIcon />
+          Getplace
         </Link>
-        <a
-          href="mailto:hello@getplace.io?subject=Country Explorer — Demo Request"
-          className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
-        >
-          Request a Demo
-        </a>
+        <div className="flex items-center gap-3">
+          <Link to="/explorer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            Try Explorer →
+          </Link>
+          <button
+            type="button"
+            onClick={() => setModalOpen(true)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg text-sm font-semibold transition-colors"
+          >
+            Request a Demo
+          </button>
+        </div>
       </div>
-    </div>
-  </nav>
-);
+      <EarlyAccessModal open={modalOpen} onOpenChange={setModalOpen} />
+    </nav>
+  );
+};
 
 export default Navbar;
