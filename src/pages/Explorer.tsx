@@ -205,6 +205,7 @@ const Explorer = () => {
                 onApplyBrandGroup={handleApplyBrandGroup}
                 onCreateBrandGroup={createBrandGroup}
                 onDeleteBrandGroup={deleteBrandGroup}
+                visibleIndices={timeline.visibleIndices}
               />
               {activeView === "map" ? (
                 <>

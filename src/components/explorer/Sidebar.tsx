@@ -16,22 +16,27 @@ interface SidebarProps {
   onApplyBrandGroup: (brands: readonly string[]) => void;
   onCreateBrandGroup: (name: string, brands: readonly string[]) => void;
   onDeleteBrandGroup: (id: string) => void;
+  visibleIndices?: Record<string, ReadonlySet<number>>;
 }
 
-const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup }: SidebarProps) => {
+const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup, visibleIndices }: SidebarProps) => {
   const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION } = useCountry();
-  // Compute totals
+  // Compute totals — use visibleIndices when available, fall back to static REGION_COUNTS
   const totals: Record<string, number> = {};
   Object.keys(BRANDS).forEach((b) => {
-    totals[b] = 0;
-    Object.values(REGION_COUNTS).forEach((rc) => { totals[b] += rc[b] || 0; });
+    if (visibleIndices) {
+      totals[b] = visibleIndices[b]?.size ?? 0;
+    } else {
+      totals[b] = 0;
+      Object.values(REGION_COUNTS).forEach((rc) => { totals[b] += rc[b] || 0; });
+    }
   });
   const sorted = Object.keys(BRANDS).sort((a, b) => totals[b] - totals[a]);
 
   // Country summary
   let totalLocations = 0;
   selectedBrands.forEach((b) => {
-    Object.values(REGION_COUNTS).forEach((rc) => { totalLocations += rc[b] || 0; });
+    totalLocations += totals[b] || 0;
   });
   const totalPop = Object.values(POPULATION).reduce((a, b) => a + b, 0);
 
