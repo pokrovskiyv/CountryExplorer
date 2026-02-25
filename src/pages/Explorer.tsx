@@ -10,6 +10,8 @@ import RadarMapView from "@/components/radar/RadarMapView";
 import RadarPanel from "@/components/radar/RadarPanel";
 import { useExpansionRadar } from "@/hooks/useExpansionRadar";
 import { useBrandGroups } from "@/hooks/useBrandGroups";
+import { useTimeline } from "@/hooks/useTimeline";
+import TimelineSlider from "@/components/explorer/TimelineSlider";
 import { BRANDS } from "@/data/uk-data";
 
 type Metric = "total" | "density" | "share";
@@ -43,6 +45,7 @@ const Explorer = () => {
 
   const radar = useExpansionRadar(activeView === "radar");
   const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups();
+  const timeline = useTimeline();
 
   const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
     setSelectedBrands(new Set(brands));
@@ -94,6 +97,15 @@ const Explorer = () => {
   return (
     <div className="h-screen flex flex-col bg-[hsl(230,30%,6%)] text-slate-200 overflow-hidden">
       <Header activeView={activeView} onViewChange={setActiveView} contentRef={contentRef} />
+      {activeView !== "radar" && (
+        <TimelineSlider
+          currentMonth={timeline.currentMonth}
+          currentDate={timeline.currentDate}
+          isPlaying={timeline.isPlaying}
+          onMonthChange={timeline.setCurrentMonth}
+          onTogglePlay={timeline.togglePlay}
+        />
+      )}
       <div ref={contentRef} className="flex flex-1 overflow-hidden">
         {activeView === "radar" ? (
           <>
@@ -148,6 +160,7 @@ const Explorer = () => {
                   selectedRegion={selectedRegion}
                   onRegionSelect={handleRegionSelect}
                   topoData={topoData}
+                  visibleIndices={timeline.visibleIndices}
                 />
                 <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
               </>

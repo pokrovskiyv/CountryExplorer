@@ -15,6 +15,7 @@ interface MapViewProps {
   selectedRegion: string | null;
   onRegionSelect: (name: string) => void;
   topoData: any;
+  visibleIndices?: Record<string, ReadonlySet<number>>;
 }
 
 function getMarkerRadius(zoom: number): number {
@@ -31,7 +32,7 @@ function getMarkerOpacity(zoom: number): number {
   return 0.85;
 }
 
-const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData }: MapViewProps) => {
+const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices }: MapViewProps) => {
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
   const pointLayersRef = useRef<Record<string, L.LayerGroup>>({});
@@ -216,7 +217,9 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
       sortedBrands.forEach((brand) => {
         const pts = BRAND_POINTS[brand] || [];
-        const markers = pts.map((p) => {
+        const vis = visibleIndices?.[brand];
+        const filteredPts = vis ? pts.filter((_, i) => vis.has(i)) : pts;
+        const markers = filteredPts.map((p) => {
           const marker = L.circleMarker([p[0], p[1]], {
             radius,
             fillColor: BRANDS[brand].color,
@@ -247,7 +250,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         map.off("zoomend", onZoomEnd);
       };
     }
-  }, [selectedBrands, display]);
+  }, [selectedBrands, display, visibleIndices]);
 
   // Update heatmap layer
   useEffect(() => {
@@ -264,8 +267,11 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     const latlngs: [number, number][] = [];
     selectedBrands.forEach((brand) => {
       const pts = BRAND_POINTS[brand] || [];
-      pts.forEach((p) => {
-        latlngs.push([p[0], p[1]]);
+      const vis = visibleIndices?.[brand];
+      pts.forEach((p, i) => {
+        if (!vis || vis.has(i)) {
+          latlngs.push([p[0], p[1]]);
+        }
       });
     });
 
@@ -294,7 +300,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         heatLayerRef.current = null;
       }
     };
-  }, [selectedBrands, display]);
+  }, [selectedBrands, display, visibleIndices]);
 
   // Fit bounds on selected region
   useEffect(() => {
