@@ -15,6 +15,7 @@ import TimelineSlider from "@/components/explorer/TimelineSlider";
 import AlertsPanel from "@/components/explorer/AlertsPanel";
 import { CountryProvider } from "@/contexts/CountryContext";
 import { COUNTRY_CONFIGS } from "@/data/country-configs";
+import { useCountryData } from "@/hooks/useCountryData";
 import { useAlerts } from "@/hooks/useAlerts";
 
 type CountryCode = "uk" | "de";
@@ -36,7 +37,7 @@ function readViewFromHash(): ViewType {
 const Explorer = () => {
   const [activeCountry, setActiveCountry] = useState<CountryCode>("uk");
   const [activeView, setActiveView] = useState<ViewType>(readViewFromHash);
-  const countryConfig = COUNTRY_CONFIGS[activeCountry];
+  const { config: countryConfig, isLoading: isCountryLoading } = useCountryData(activeCountry);
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(
     () => new Set(Object.keys(countryConfig.brands))
   );
