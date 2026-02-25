@@ -27,8 +27,9 @@
 
 **Карта и визуализация:**
 - Хороплетная карта регионов (choropleth) с TopoJSON
-- Слой точек (CircleMarkers) с popup-деталями
+- Слой точек (CircleMarkers) с popup/tooltip-деталями (delivery-платформы, drive-thru, Click & Collect)
 - Heatmap mode (тепловая карта плотности)
+- Выбор региона кликом работает во всех 4 режимах (choropleth/points/both/heatmap) через dual-layer архитектуру
 - Light/Dark тема с автоматическим переключением тайлов CartoCDN
 
 **Аналитика и навигация:**
@@ -48,8 +49,9 @@
 - Persistence правил в localStorage
 
 **AI-инсайты (Agent Team):**
-- 3 агента: Market Monitor, Competitor Tracker, Expansion Scout
-- 12 типов инсайтов с приоритизацией (1-5)
+- 4 агента: Market Monitor, Competitor Tracker, Expansion Scout, Delivery Intel
+- 17 типов инсайтов с приоритизацией (1-5)
+- Delivery Intel анализирует покрытие платформ доставки (Deliveroo, UberEats, Just Eat), drive-thru, Click & Collect
 - Карточки агентов с индикацией статуса (idle/alerting)
 
 **Expansion Radar:**
@@ -70,7 +72,7 @@
 Ценность для клиента (количественная и стратегическая), три модели монетизации, влияние на метрики Getplace, go-to-market стратегия.
 
 ### 5. [Документация для разработки](./04-dev-documentation.md)
-Архитектура, модель данных, API endpoints, структура React-компонентов, CountryContext + custom hooks, Agent Team, Expansion Radar, Timeline, система алертов.
+Архитектура, модель данных, API endpoints, структура React-компонентов, CountryContext + custom hooks, Agent Team (4 агента, 17 инсайтов), Expansion Radar, Timeline, система алертов, dual-layer карта.
 
 ### 6. [Лендинг фичи](./05-landing-page.html)
 Marketing landing page с hero, stats, features, use cases, CTA.
@@ -84,11 +86,13 @@ Marketing landing page с hero, stats, features, use cases, CTA.
 | Бренд | Точек | Ключевые атрибуты |
 |-------|-------|-------------------|
 | Subway | 2,063 | Адреса, postcode |
-| McDonald's | 1,508 | Drive-thru, delivery, wifi, breakfast |
-| Domino's | 1,331 | FSA рейтинг, методы доставки, trading hours |
-| KFC | 1,037 | Facilities, агрегаторы (Deliveroo/Uber/JustEat) |
-| Nando's | 484 | Cuisine, price range, amenities |
-| Papa John's | 397 | Min spend, delivery charge |
+| McDonald's | 1,508 | Drive-thru, delivery (Deliveroo/UberEats/JustEat), wifi, breakfast |
+| Domino's | 1,331 | FSA рейтинг, собственная доставка, Click & Collect, trading hours |
+| KFC | 1,037 | Drive-thru, агрегаторы (Deliveroo/Uber/JustEat), Click & Collect |
+| Nando's | 484 | Cuisine, price range, Deliveroo/UberEats |
+| Papa John's | 397 | Min spend, собственная доставка, JustEat |
+
+Per-point delivery и format атрибуты сгенерированы из GeoJSON-свойств и хранятся в `brand-attributes.ts` (параллельно `BRAND_POINTS`).
 
 12 регионов UK (ITL1), дополнены данными о населении.
 

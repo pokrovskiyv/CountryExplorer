@@ -48,6 +48,9 @@ export const REGION_COUNTS: Record<string, Record<string, number>> = {
 // Brand point coordinates — real data from GeoJSON restaurant locations
 export { BRAND_POINTS } from "./brand-points";
 
+// Delivery platform coverage and format attributes per restaurant
+export { BRAND_ATTRIBUTES } from "./brand-attributes";
+
 // Region centroids for map labels [lat, lng]
 export const REGION_CENTROIDS: Record<string, [number, number]> = {
   "North East (England)": [55.0, -1.6],

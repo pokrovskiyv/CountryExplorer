@@ -147,12 +147,14 @@ def load_brand(filename, extractor):
     with open(filepath) as f:
         data = json.load(f)
     points = []
+    raw_props = []
     for feat in data["features"]:
         result = extractor(feat)
         if result is not None:
             lat, lon, address, city, postcode = result
             points.append((lat, lon, address, normalize_city(city), postcode))
-    return points
+            raw_props.append(feat["properties"])
+    return points, raw_props
 
 def escape_ts_string(s):
     """Escape string for TypeScript single-quoted string literal."""
@@ -211,7 +213,159 @@ def generate_brand_points_ts(all_brands):
     print(f"Written {out_path} ({sum(len(v) for v in all_brands.values())} points)")
 
 # ---------------------------------------------------------------------------
-# 5. Generate city-region-mapping.ts and REGION_COUNTS
+# 5. Brand-specific attribute extractors
+# ---------------------------------------------------------------------------
+
+def attrs_kfc(props):
+    return {
+        "deliveroo": bool(props.get("hasDeliveroo", False)),
+        "uberEats": bool(props.get("hasUberEats", False)),
+        "justEat": bool(props.get("hasJustEat", False)),
+        "ownDelivery": bool(props.get("hasDelivery", False)),
+        "driveThru": bool(props.get("hasDriveThru", False)),
+        "clickAndCollect": bool(props.get("hasClickAndCollect", False)),
+    }
+
+def attrs_mcdonalds(props):
+    delivery = props.get("deliveryServices", []) or []
+    features = props.get("features", []) or []
+    return {
+        "deliveroo": "DELIVEROO" in delivery,
+        "uberEats": "UBEREATS" in delivery,
+        "justEat": "JUSTEAT" in delivery,
+        "ownDelivery": "GMA-INTEGRATED-DELIVERY" in delivery,
+        "driveThru": "DRIVETHRU" in features,
+        "clickAndCollect": "MYMCDONALDS" in delivery,
+    }
+
+def attrs_dominos(props):
+    methods = props.get("availableFulfilmentMethods", []) or []
+    return {
+        "deliveroo": False,
+        "uberEats": False,
+        "justEat": False,
+        "ownDelivery": "Delivery" in methods,
+        "driveThru": False,
+        "clickAndCollect": "Collection" in methods,
+    }
+
+def attrs_nandos(props):
+    amenities = props.get("amenityFeature", []) or []
+    amenity_map = {a["name"]: a.get("value", False) for a in amenities}
+    return {
+        "deliveroo": False,
+        "uberEats": False,
+        "justEat": False,
+        "ownDelivery": bool(amenity_map.get("Delivery", False)),
+        "driveThru": False,
+        "clickAndCollect": bool(amenity_map.get("Takeaway", False)),
+    }
+
+def attrs_papajohns(_props):
+    return {
+        "deliveroo": False,
+        "uberEats": False,
+        "justEat": False,
+        "ownDelivery": True,
+        "driveThru": False,
+        "clickAndCollect": True,
+    }
+
+def attrs_subway(props):
+    return {
+        "deliveroo": False,
+        "uberEats": False,
+        "justEat": False,
+        "ownDelivery": False,
+        "driveThru": False,
+        "clickAndCollect": props.get("ordering_url") is not None,
+    }
+
+BRAND_ATTR_EXTRACTORS = {
+    "Subway": attrs_subway,
+    "McDonalds": attrs_mcdonalds,
+    "Dominos": attrs_dominos,
+    "KFC": attrs_kfc,
+    "Nandos": attrs_nandos,
+    "PapaJohns": attrs_papajohns,
+}
+
+# ---------------------------------------------------------------------------
+# 6. Generate brand-attributes.ts
+# ---------------------------------------------------------------------------
+
+def generate_brand_attributes_ts(all_brands, all_props):
+    lines = []
+    lines.append("// Delivery platform coverage and format attributes per restaurant")
+    lines.append("// Generated from GeoJSON property data — parallel to BRAND_POINTS")
+    lines.append("// Source: scripts/convert-geojson.py")
+    lines.append("")
+    lines.append("export interface DeliveryPlatforms {")
+    lines.append("  readonly deliveroo: boolean")
+    lines.append("  readonly uberEats: boolean")
+    lines.append("  readonly justEat: boolean")
+    lines.append("  readonly ownDelivery: boolean")
+    lines.append("}")
+    lines.append("")
+    lines.append("export interface PointAttributes {")
+    lines.append("  readonly delivery: DeliveryPlatforms")
+    lines.append("  readonly driveThru: boolean")
+    lines.append("  readonly clickAndCollect: boolean")
+    lines.append("}")
+    lines.append("")
+    lines.append("export const BRAND_ATTRIBUTES: Record<string, readonly PointAttributes[]> = {")
+
+    brand_order = ["Subway", "McDonalds", "Dominos", "KFC", "Nandos", "PapaJohns"]
+    total_attrs = 0
+
+    for brand_name in brand_order:
+        points = all_brands[brand_name]
+        props_list = all_props[brand_name]
+        extractor = BRAND_ATTR_EXTRACTORS[brand_name]
+
+        assert len(points) == len(props_list), (
+            f"{brand_name}: points ({len(points)}) != props ({len(props_list)})"
+        )
+
+        lines.append(f"  {brand_name}: [")
+        for props in props_list:
+            a = extractor(props)
+            d = a
+            lines.append(
+                f"    {{delivery:{{deliveroo:{_ts_bool(d['deliveroo'])},"
+                f"uberEats:{_ts_bool(d['uberEats'])},"
+                f"justEat:{_ts_bool(d['justEat'])},"
+                f"ownDelivery:{_ts_bool(d['ownDelivery'])}}},"
+                f"driveThru:{_ts_bool(d['driveThru'])},"
+                f"clickAndCollect:{_ts_bool(d['clickAndCollect'])}}},"
+            )
+            total_attrs += 1
+        lines.append("  ],")
+
+    lines.append("}")
+    lines.append("")
+
+    out_path = OUT_DIR / "brand-attributes.ts"
+    with open(out_path, "w") as f:
+        f.write("\n".join(lines))
+    print(f"Written {out_path} ({total_attrs} attributes)")
+
+    # Verify parallel array lengths
+    for brand_name in brand_order:
+        pt_count = len(all_brands[brand_name])
+        pr_count = len(all_props[brand_name])
+        assert pt_count == pr_count, (
+            f"MISMATCH: {brand_name} has {pt_count} points but {pr_count} attributes"
+        )
+    print("  Verified: all attribute arrays match point arrays")
+
+
+def _ts_bool(v):
+    return "true" if v else "false"
+
+
+# ---------------------------------------------------------------------------
+# 7. Generate city-region-mapping.ts and REGION_COUNTS
 # ---------------------------------------------------------------------------
 
 def generate_city_region_and_counts(all_brands):
@@ -299,9 +453,11 @@ def generate_city_region_and_counts(all_brands):
 def main():
     print("Loading brand data...")
     all_brands = {}
+    all_props = {}
     for brand_name, (filename, extractor) in BRAND_FILES.items():
-        points = load_brand(filename, extractor)
+        points, raw_props = load_brand(filename, extractor)
         all_brands[brand_name] = points
+        all_props[brand_name] = raw_props
         print(f"  {brand_name}: {len(points)} points")
 
     print(f"\nTotal: {sum(len(v) for v in all_brands.values())} points")
@@ -311,6 +467,9 @@ def main():
 
     print("\nGenerating brand-points.ts...")
     generate_brand_points_ts(all_brands)
+
+    print("\nGenerating brand-attributes.ts...")
+    generate_brand_attributes_ts(all_brands, all_props)
 
     print("\nDone!")
 

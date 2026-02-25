@@ -38,8 +38,8 @@
 
 **Что делаем:**
 1. ~~Drill-down до уровня города~~ → **✅ РЕАЛИЗОВАНО** (CityBreakdown component)
-2. ~~Popup точки~~ → **✅ РЕАЛИЗОВАНО** (marker popups with address, brand, city)
-3. Фильтрация по атрибутам (только с delivery, только с drive-thru) — ❌ НЕ РЕАЛИЗОВАНО
+2. ~~Popup точки~~ → **✅ РЕАЛИЗОВАНО** (marker popups/tooltips с адресом, delivery-платформами, drive-thru, Click & Collect)
+3. Фильтрация по атрибутам (только с delivery, только с drive-thru) — ❌ НЕ РЕАЛИЗОВАНО (данные доступны в brand-attributes.ts)
 4. ~~Экспорт данных~~ → **✅ РЕАЛИЗОВАНО** (CSV export + PDF snapshot)
 5. ~~Population overlay~~ → **✅ РЕАЛИЗОВАНО** (density per 100k metric)
 6. Поиск по названию бренда, города, postcode — ❌ НЕ РЕАЛИЗОВАНО
@@ -106,11 +106,12 @@
    - 4 фактора: Penetration Gap (35%), Competitor Presence (25%), Population Score (20%), Density Headroom (20%)
    - 5 тиров: Hot → Warm → Moderate → Cool → Cold
    - Настраиваемые веса через UI-слайдеры
-2. **Agent Team** — три AI-агента, генерирующих инсайты из данных timeline
+2. **Agent Team** — четыре AI-агента, генерирующих инсайты из данных
    - Market Monitor: rapid-growth, regional-leader-shift, market-acceleration, stagnant-market
    - Competitor Tracker: brand-dominance, competitive-entry, flanking-threat, brand-gap
    - Expansion Scout: hot-opportunity, tier-upgrade, multi-brand-opportunity, saturated-region-warning
-   - Итого 12 типов инсайтов с приоритизацией (1-5)
+   - Delivery Intel: platform-coverage-gap, delivery-desert, drive-thru-advantage, own-delivery-dominance, click-collect-leader
+   - Итого 17 типов инсайтов с приоритизацией (1-5)
 3. **Unified Feed** — алерты и AI-инсайты в единой панели (AlertsPanel с 3 табами: Events / Agents / Rules)
 4. **Light/Dark тема** — переключение с определением системных предпочтений, автоматическая смена тайлов CartoCDN
 
@@ -141,3 +142,4 @@
 | Клиенты хотят города раньше регионов | Средняя | Быстрый follow-up Phase 2, готовить city-level данные параллельно с Phase 1 |
 | Разные форматы данных по странам | Высокая | Универсальная схема нормализации с Phase 1 |
 | Масштабирование агентов до production AI | Средняя | Текущие агенты — rule-based демо; переход на LLM-based потребует бэкенда |
+| Клики на карте перехватываются маркерами | **Решено** | Dual-layer архитектура: невидимый regionInteractionPane (z=600) поверх всех слоёв |

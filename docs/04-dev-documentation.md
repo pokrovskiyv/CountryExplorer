@@ -249,6 +249,8 @@ src/
 │   ├── landing/                   # Компоненты лендинга
 │   │   ├── Hero.tsx, Navbar.tsx, Features.tsx, UseCases.tsx
 │   │   ├── StatsBar.tsx, Screenshot.tsx, CTASection.tsx, Footer.tsx
+│   │   ├── AgentTeam.tsx            # Секция с 3 AI-агентами для лендинга
+│   │   └── landing-constants.ts     # Данные агентов, цветовые токены, slides для скриншотов
 │   └── ui/                        # shadcn/ui компоненты (40+ файлов)
 ├── hooks/
 │   ├── useTimeline.ts             # Timeline state: month 0-131, play/pause, speed, visibleIndices
@@ -268,12 +270,15 @@ src/
 │   ├── alert-engine.ts            # evaluateAlerts + buildSnapshot (pure functions)
 │   ├── expansion-scoring.ts       # 4 sub-scores, composite scoring, tiers
 │   ├── city-aggregation.ts        # Агрегация точек по городам
+│   ├── delivery-aggregation.ts    # Агрегация delivery-атрибутов по регионам (region→brand→stats)
+│   ├── delivery-intel-agent.ts    # 4-й агент: Delivery Intel — анализ delivery-платформ
 │   ├── derived-metrics.ts         # Вычисление density, share
 │   ├── export-csv.ts              # CSV export
 │   ├── export-pdf.ts              # PDF snapshot export
 │   ├── feed-types.ts              # Unified feed type definitions
 │   ├── insight-generator.ts       # High-level insight generator
 │   ├── opportunity-colors.ts      # Цветовые шкалы для Radar тиров
+│   ├── popup-builder.ts           # HTML-builder для popup/tooltip маркеров (с escapeHtml)
 │   ├── utils.ts                   # cn() и общие утилиты
 │   └── api/
 │       ├── brand-points.ts        # Supabase API: загрузка brand points
@@ -281,6 +286,7 @@ src/
 ├── data/
 │   ├── uk-data.ts                 # Статические данные UK (regions, brands, population)
 │   ├── brand-points.ts            # Brand point coordinates and metadata
+│   ├── brand-attributes.ts        # Per-point delivery/format атрибуты (параллельно BRAND_POINTS)
 │   ├── country-configs.ts         # COUNTRY_CONFIGS registry
 │   ├── city-region-mapping.ts     # city → region lookup table
 │   └── temporal-data.ts           # OPEN_DATES: synthetic opening dates per brand
@@ -296,6 +302,8 @@ src/
     ├── timeline.test.ts           # Timeline logic tests
     ├── brand-groups.test.ts       # Brand groups tests
     ├── city-aggregation.test.ts   # City aggregation tests
+    ├── delivery-aggregation.test.ts # Delivery aggregation tests
+    ├── delivery-intel-agent.test.ts # Delivery Intel agent tests
     ├── export-csv.test.ts         # CSV export tests
     ├── country-context.test.ts    # Context tests
     ├── api-integration.test.ts    # API integration tests
@@ -317,6 +325,7 @@ interface CountryConfig {
   readonly population: Record<string, number>
   readonly brandPoints: Record<string, readonly [number, number, string, string, string][]>
   readonly regionCentroids: Record<string, [number, number]>
+  readonly brandAttributes?: Record<string, readonly PointAttributes[]>
   readonly interpolateColor: (t: number) => string
   readonly mapCenter: [number, number]
   readonly mapZoom: number
@@ -342,15 +351,16 @@ interface CountryConfig {
 
 ### Агенты
 
-3 специализированных агента, каждый анализирует snapshot переходы (prevSnapshot → nextSnapshot):
+4 специализированных агента. Первые 3 анализируют snapshot переходы (prevSnapshot → nextSnapshot), 4-й работает статически по delivery-атрибутам:
 
 | Агент | ID | Tagline | Типы инсайтов |
 |-------|-----|---------|---------------|
 | Market Monitor | `market-monitor` | Tracks growth trends and market dynamics | rapid-growth, regional-leader-shift, market-acceleration, stagnant-market |
 | Competitor Tracker | `competitor-tracker` | Identifies competitive threats and openings | brand-dominance, competitive-entry, flanking-threat, brand-gap |
 | Expansion Scout | `expansion-scout` | Discovers expansion opportunities | hot-opportunity, tier-upgrade, multi-brand-opportunity, saturated-region-warning |
+| Delivery Intel | `delivery-intel` | Analyzes delivery platform coverage and format mix | platform-coverage-gap, delivery-desert, drive-thru-advantage, own-delivery-dominance, click-collect-leader |
 
-### 12 типов инсайтов
+### 17 типов инсайтов
 
 | Тип | Агент | Триггер | Приоритет |
 |-----|-------|---------|-----------|
@@ -366,6 +376,11 @@ interface CountryConfig {
 | `tier-upgrade` | Expansion Scout | Регион перешёл из Warm в Hot | 1 |
 | `multi-brand-opportunity` | Expansion Scout | Регион Hot для ≥2 брендов | 1 |
 | `saturated-region-warning` | Expansion Scout | Все бренды Cold в регионе | 4 |
+| `platform-coverage-gap` | Delivery Intel | Разрыв ≥20pp в покрытии платформой между брендами в регионе | 2 |
+| `delivery-desert` | Delivery Intel | Регион <30% third-party delivery покрытия | 1 |
+| `drive-thru-advantage` | Delivery Intel | Разрыв ≥25pp в drive-thru между брендами в регионе | 3 |
+| `own-delivery-dominance` | Delivery Intel | Бренд >80% own delivery, <10% агрегаторов (национальный) | 3 |
+| `click-collect-leader` | Delivery Intel | Бренд >90% Click & Collect penetration в регионе | 4 |
 
 ### Data Flow
 
@@ -379,7 +394,54 @@ Timeline month change
   → AlertsPanel → AgentsTab UI
 ```
 
+Delivery Intel — отдельный data flow (статический, не зависит от timeline):
+```
+CountryConfig.brandAttributes
+  → buildDeliverySnapshot(brandPoints, brandAttributes, cityToRegion)
+  → DeliverySnapshot (region → brand → RegionDeliveryStats)
+  → runDeliveryIntel(countryConfig)
+  → AgentInsight[] (sorted by priority)
+```
+
 Все функции — pure (без side effects). Агенты rule-based, не используют LLM.
+
+### Delivery-атрибуты (brand-attributes.ts)
+
+Per-point атрибуты доставки и формата, параллельные массиву `BRAND_POINTS`:
+
+```typescript
+interface PointAttributes {
+  readonly delivery: {
+    readonly deliveroo: boolean
+    readonly uberEats: boolean
+    readonly justEat: boolean
+    readonly ownDelivery: boolean
+  }
+  readonly driveThru: boolean
+  readonly clickAndCollect: boolean
+}
+```
+
+Генерируются из GeoJSON-свойств скриптом `scripts/convert-geojson.py`. Хранятся в `BRAND_ATTRIBUTES: Record<string, readonly PointAttributes[]>` — массивы 1:1 с `BRAND_POINTS`.
+
+### Delivery Aggregation (delivery-aggregation.ts)
+
+Агрегирует per-point атрибуты в региональную статистику:
+
+```typescript
+type DeliverySnapshot = Record<string, Record<string, RegionDeliveryStats>>
+// region → brand → { total, deliveroo, uberEats, justEat, ownDelivery, driveThru, clickAndCollect, anyThirdParty }
+```
+
+`buildDeliverySnapshot()` — pure функция, создаёт snapshot. `computeNationalStats()` — агрегация всех регионов в национальную статистику для одного бренда.
+
+### Popup Builder (popup-builder.ts)
+
+Генерирует HTML для Leaflet popup/tooltip маркеров. Включает:
+- Название бренда, адрес, город, postcode
+- Delivery-платформы (Deliveroo · Uber Eats · Just Eat · Own Delivery)
+- Format badges (Drive-Thru · Click & Collect)
+- `escapeHtml()` — экспортируется для XSS-prevention в tooltip'ах карты
 
 ## 5b. Система алертов
 
@@ -453,17 +515,46 @@ composite = Σ(sub_score × weight) / Σ(weights)   → clamp(0, 100)
 - Zoom: подобран так, чтобы вся страна была видна (UK: zoom 6)
 - Тайловый слой: CartoDB Dark (без labels) + отдельный слой labels поверх
 
-**Хороплетный слой (RegionLayer):**
-- Каждый регион залит цветом по выбранной метрике
-- Цветовая шкала: последовательная (sequential), от тёмного к яркому синему
-- При hover: граница региона подсвечивается (#60a5fa, weight 2.5), появляется tooltip
-- При click: регион выделяется (weight 3), открывается правая панель с деталями, карта анимированно зумится к этому региону
-- При изменении выбранных брендов или метрики — плавный перерасчёт цветов (transition 400ms)
+**Архитектура слоёв (z-index):**
+```
+z=600  regionInteractionPane    ← невидимый слой для click/hover (points/both/heatmap)
+z=450  pointsPane               ← CircleMarkers точек
+z=400  overlayPane (default)    ← визуальный RegionLayer (заливка + границы)
+z=200  tilePane                 ← тайлы CartoCDN
+```
+
+**Двухслойная архитектура (non-choropleth режимы):**
+В режимах points/both/heatmap маркеры или canvas перекрывают GeoJSON-полигоны и перехватывают клики. Для решения этой проблемы используется двухслойная архитектура:
+1. **Визуальный слой** (overlayPane, z=400) — отображает границы регионов (dashed в points/heatmap, заливка в both). Без обработчиков кликов.
+2. **Слой взаимодействия** (regionInteractionPane, z=600) — полностью невидимый (`fillOpacity: 0, weight: 0`), перехватывает все click/hover события и делегирует визуальную подсветку на нижний слой через `Map<string, Layer>` индекс.
+
+В режиме choropleth — один интерактивный слой (как раньше).
+
+**Стили визуального слоя по режимам:**
+| Режим | fillOpacity | weight | color | Дополнительно |
+|-------|------------|--------|-------|---------------|
+| choropleth | 0.7 | 1.5 | #3a3f52 | fillColor по метрике |
+| both | 0.5 | 1.5 | #3a3f52 | fillColor по метрике |
+| points | 0.05 | 1.5 | rgba(100,116,139,0.4) | dashArray "5 3" |
+| heatmap | 0.05 | 1.5 | rgba(100,116,139,0.4) | dashArray "5 3" |
+
+**Выделение региона (selection):**
+- При click: регион выделяется голубым (`color: #60a5fa, weight: 3`)
+- `fillOpacity` зависит от режима: choropleth=0.7, both=0.5, points/heatmap=0.15
+- Карта анимированно зумится к выбранному региону (fitBounds)
+
+**Hover-feedback (non-choropleth):**
+- Mouseover на interaction layer → подсветка визуального слоя (`weight: 2.5, color: #60a5fa, fillOpacity: 0.1`)
+- Mouseout → сброс стиля (или сохранение selection highlight)
 
 **Слой точек (PointsLayer):**
-- CircleMarker с radius=3, цвет бренда, fillOpacity=0.7
-- При hover: popup с названием, брендом, адресом
-- При zoom > 12: radius увеличивается до 5, показывается label
+- CircleMarker с radius, зависящим от zoom (2-6px), цвет бренда
+- В choropleth: `bindPopup` (click → popup с адресом, delivery-платформами, форматами)
+- В points/both/heatmap: `bindTooltip` (hover → tooltip), клик проходит на interaction layer для выбора региона
+
+**Heatmap:**
+- Canvas heatmap layer (leaflet.heat)
+- `pointer-events: "none"` на canvas — клики проходят через canvas к interaction layer
 
 **Tooltip (RegionTooltip):**
 - Появляется при hover на регион (position: абсолютная, привязана к курсору)
@@ -485,9 +576,11 @@ composite = Σ(sub_score × weight) / Σ(weights)   → clamp(0, 100)
 - Выбор мгновенно перекрашивает карту
 
 **Display Selector:**
-- 3 кнопки: "Regions" / "Points" / "Both"
-- "Points" — показывает точки, регионы полупрозрачные (fillOpacity: 0.15)
-- "Both" — и хороплет, и точки
+- 4 кнопки: "Regions" / "Points" / "Both" / "Heatmap"
+- "Points" — точки + пунктирные границы регионов (dashArray "5 3")
+- "Both" — хороплетная заливка (0.5) + точки поверх
+- "Heatmap" — тепловая карта плотности + пунктирные границы
+- Во всех режимах работает выбор региона кликом (через interaction layer)
 
 ### Правая панель (RegionPanel)
 
@@ -522,6 +615,7 @@ composite = Σ(sub_score × weight) / Σ(weights)   → clamp(0, 100)
 - Использует leaflet.heat plugin
 - Интенсивность определяется количеством точек
 - Переключается через 4-позиционный selector: Regions / Points / Both / Heatmap
+- Canvas heatmap layer: `pointer-events: "none"` — клики проходят к interaction layer для выбора регионов
 
 ### Timeline Slider (TimelineSlider)
 - Горизонтальная полоса под Header, над контентом

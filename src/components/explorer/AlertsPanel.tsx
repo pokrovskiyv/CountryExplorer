@@ -39,6 +39,7 @@ const AGENT_COLOR_MAP: Record<string, string> = {
   emerald: "text-emerald-400",
   red: "text-red-400",
   purple: "text-purple-400",
+  blue: "text-blue-400",
 }
 
 function renderFeedItem(item: FeedItem) {

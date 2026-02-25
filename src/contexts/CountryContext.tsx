@@ -1,5 +1,6 @@
 import { createContext, useContext } from "react"
 import type { ReactNode } from "react"
+import type { PointAttributes } from "@/data/brand-attributes"
 
 export interface BrandInfo {
   readonly color: string
@@ -18,6 +19,7 @@ export interface CountryConfig {
   readonly mapCenter: [number, number]
   readonly mapZoom: number
   readonly cityToRegion: Record<string, string>
+  readonly brandAttributes?: Record<string, readonly PointAttributes[]>
 }
 
 const CountryContext = createContext<CountryConfig | null>(null)

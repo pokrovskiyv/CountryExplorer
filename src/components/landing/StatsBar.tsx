@@ -1,8 +1,8 @@
 const stats = [
-  { number: "6,820", desc: "Restaurant locations tracked" },
-  { number: "6", desc: "Major QSR brands" },
-  { number: "12", desc: "Regions analyzed" },
-  { number: "30s", desc: "From question to insight" },
+  { number: "6,820+", desc: "Restaurant locations tracked" },
+  { number: "131", desc: "Months of real footprint history" },
+  { number: "12", desc: "UK regions with city drill-down" },
+  { number: "17", desc: "Insight types surfaced automatically" },
 ];
 
 const StatsBar = () => (

@@ -8,16 +8,18 @@ import {
   type RegionScore,
 } from "./expansion-scoring"
 import type { CountryConfig } from "@/contexts/CountryContext"
+import { runDeliveryIntel } from "./delivery-intel-agent"
 
 // --- Types ---
 
-export type AgentId = "market-monitor" | "competitor-tracker" | "expansion-scout"
+export type AgentId = "market-monitor" | "competitor-tracker" | "expansion-scout" | "delivery-intel"
 
 export type MarketInsightType =
   | "rapid-growth"
   | "regional-leader-shift"
   | "market-acceleration"
   | "stagnant-market"
+  | "market-leader"
 
 export type CompetitorInsightType =
   | "brand-dominance"
@@ -27,11 +29,19 @@ export type CompetitorInsightType =
 
 export type ExpansionInsightType =
   | "hot-opportunity"
+  | "growth-opportunity"
   | "tier-upgrade"
   | "multi-brand-opportunity"
   | "saturated-region-warning"
 
-export type InsightType = MarketInsightType | CompetitorInsightType | ExpansionInsightType
+export type DeliveryInsightType =
+  | "platform-coverage-gap"
+  | "delivery-desert"
+  | "drive-thru-advantage"
+  | "own-delivery-dominance"
+  | "click-collect-leader"
+
+export type InsightType = MarketInsightType | CompetitorInsightType | ExpansionInsightType | DeliveryInsightType
 
 export interface AgentInsight {
   readonly id: string
@@ -50,6 +60,7 @@ export interface AgentDefinition {
   readonly name: string
   readonly tagline: string
   readonly color: string
+  readonly static?: boolean
   readonly run: (
     prevSnapshot: Snapshot,
     nextSnapshot: Snapshot,
@@ -66,6 +77,9 @@ const DOMINANCE_SHARE_THRESHOLD = 0.35
 const COMPETITIVE_ENTRY_RIVAL_MIN = 30
 const FLANKING_GROWTH_MIN = 2
 const ESTABLISHED_BRAND_MIN_LOCATIONS = 50
+const MARKET_LEADER_TOP_REGIONS = 3
+const GROWTH_OPPORTUNITY_MIN_SCORE = 45
+const GROWTH_OPPORTUNITY_MAX_PER_BRAND = 3
 
 // --- Helpers ---
 
@@ -217,6 +231,30 @@ function runMarketMonitor(
           2,
           [brand],
           "National"
+        )
+      )
+    }
+  }
+
+  // market-leader: identify the leading brand in the largest regions (state-based)
+  const regionsBySize = [...regions]
+    .map((r) => ({ region: r, total: getRegionTotal(nextSnapshot, r) }))
+    .sort((a, b) => b.total - a.total)
+    .slice(0, MARKET_LEADER_TOP_REGIONS)
+
+  for (const { region, total } of regionsBySize) {
+    const top = getTopBrand(nextSnapshot, region)
+    if (top && total > 0) {
+      const share = Math.round((top.count / total) * 100)
+      insights.push(
+        makeInsight(
+          "market-monitor",
+          "market-leader",
+          `${top.brand} leads ${region} with ${top.count} locations (${share}% of ${total})`,
+          monthDate,
+          3,
+          [top.brand],
+          region
         )
       )
     }
@@ -403,6 +441,25 @@ function runExpansionScout(
         )
       }
     }
+
+    // growth-opportunity: top-scoring non-Hot regions above minimum threshold
+    const nonHotAboveMin = scores
+      .filter((s) => s.tier !== "Hot" && s.composite >= GROWTH_OPPORTUNITY_MIN_SCORE)
+      .slice(0, GROWTH_OPPORTUNITY_MAX_PER_BRAND)
+
+    for (const score of nonHotAboveMin) {
+      insights.push(
+        makeInsight(
+          "expansion-scout",
+          "growth-opportunity",
+          `${score.region} shows growth potential for ${brand} (score: ${score.composite}, ${score.tier})`,
+          monthDate,
+          3,
+          [brand],
+          score.region
+        )
+      )
+    }
   }
 
   // multi-brand-opportunity: region is Hot for 2+ brands
@@ -506,6 +563,14 @@ export const AGENT_DEFINITIONS: readonly AgentDefinition[] = [
     color: "purple",
     run: runExpansionScout,
   },
+  {
+    id: "delivery-intel",
+    name: "Delivery Intel",
+    tagline: "Analyzes delivery platform coverage and format mix",
+    color: "blue",
+    static: true,
+    run: (_prev, _next, countryConfig) => runDeliveryIntel(countryConfig),
+  },
 ]
 
 // --- Top-level runner ---
@@ -519,6 +584,7 @@ export function runAllAgents(
   const allInsights: AgentInsight[] = []
 
   for (const agent of AGENT_DEFINITIONS) {
+    if (agent.static) continue // static agents run once on mount, not per tick
     const agentInsights = agent.run(prevSnapshot, nextSnapshot, countryConfig, monthDate)
     allInsights.push(...agentInsights)
   }

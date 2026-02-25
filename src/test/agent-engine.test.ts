@@ -70,6 +70,24 @@ describe("agent-engine", () => {
       expect(stagnant[0].message).toContain("zero net openings")
     })
 
+    it("detects market-leader for the leading brand in top regions", () => {
+      const snapshot: Snapshot = {
+        London: { Subway: 100, McDonalds: 50, KFC: 30 },
+        Wales: { Subway: 20, McDonalds: 40, KFC: 10 },
+      }
+      const insights = runAgent("market-monitor", snapshot, snapshot)
+      const leaders = insights.filter((i) => i.insightType === "market-leader")
+      expect(leaders).toHaveLength(2)
+      // London is larger (180 total) so Subway should lead there
+      const londonLeader = leaders.find((i) => i.region === "London")
+      expect(londonLeader).toBeDefined()
+      expect(londonLeader!.brands).toContain("Subway")
+      // Wales: McDonalds leads
+      const walesLeader = leaders.find((i) => i.region === "Wales")
+      expect(walesLeader).toBeDefined()
+      expect(walesLeader!.brands).toContain("McDonalds")
+    })
+
     it("detects market-acceleration for fast-growing brand", () => {
       const prev: Snapshot = {
         London: { Subway: 10, McDonalds: 10, KFC: 10 },
@@ -150,6 +168,21 @@ describe("agent-engine", () => {
       expect(hot.length).toBeGreaterThanOrEqual(0)
     })
 
+    it("detects growth-opportunity for non-Hot regions above score threshold", () => {
+      const snapshot: Snapshot = {}
+      for (const [region, counts] of Object.entries(ukConfig.regionCounts)) {
+        snapshot[region] = { ...counts }
+      }
+      const insights = runAgent("expansion-scout", snapshot, snapshot)
+      const growth = insights.filter((i) => i.insightType === "growth-opportunity")
+      // With real UK data, smaller brands have underserved regions scoring 45+
+      expect(growth.length).toBeGreaterThanOrEqual(1)
+      // Each insight should mention score and tier
+      for (const g of growth) {
+        expect(g.message).toContain("score:")
+      }
+    })
+
     it("detects tier-upgrade from Warm to Hot", () => {
       // Create snapshots where a brand's score transitions
       // In prev snapshot, brand is present so score is lower (Warm)
@@ -197,6 +230,64 @@ describe("agent-engine", () => {
         // With uniform data except one outlier, at least one multi should fire
         expect(allMulti.length).toBeGreaterThanOrEqual(0)
       }
+    })
+  })
+
+  describe("Initial insights (prev=next)", () => {
+    it("produces state-based insights from all 3 temporal agents when prev=next", () => {
+      // Build a snapshot from real UK config
+      const snapshot: Snapshot = {}
+      for (const [region, counts] of Object.entries(ukConfig.regionCounts)) {
+        snapshot[region] = { ...counts }
+      }
+
+      // Run all temporal agents with prev=next (simulates page load)
+      const NOISY_ON_INIT = new Set(["stagnant-market"])
+      const allInsights: AgentInsight[] = []
+      for (const agent of AGENT_DEFINITIONS) {
+        if (agent.static) continue
+        const insights = agent.run(snapshot, snapshot, ukConfig, "initial")
+        allInsights.push(...insights.filter((i) => !NOISY_ON_INIT.has(i.insightType)))
+      }
+
+      // All 3 temporal agents should produce visible insights
+      const agentIds = new Set(allInsights.map((i) => i.agentId))
+      expect(agentIds.has("market-monitor"), "market-monitor should produce market-leader").toBe(true)
+      expect(agentIds.has("competitor-tracker"), "competitor-tracker should produce brand-dominance").toBe(true)
+      expect(agentIds.has("expansion-scout"), "expansion-scout should produce growth-opportunity").toBe(true)
+
+      // Verify specific state-based insight types fire
+      expect(allInsights.filter((i) => i.insightType === "market-leader").length).toBeGreaterThanOrEqual(1)
+      expect(allInsights.filter((i) => i.insightType === "brand-dominance").length).toBeGreaterThanOrEqual(1)
+      expect(allInsights.filter((i) => i.insightType === "growth-opportunity").length).toBeGreaterThanOrEqual(1)
+
+      // Change-based insights should NOT fire
+      const changeTypes = ["rapid-growth", "regional-leader-shift", "market-acceleration", "competitive-entry", "flanking-threat"]
+      for (const type of changeTypes) {
+        expect(allInsights.filter((i) => i.insightType === type), `${type} should not fire`).toHaveLength(0)
+      }
+    })
+
+    it("stagnant-market fires for all regions when prev=next (should be filtered by hook)", () => {
+      const snapshot: Snapshot = {}
+      for (const [region, counts] of Object.entries(ukConfig.regionCounts)) {
+        snapshot[region] = { ...counts }
+      }
+
+      const insights = runAgent("market-monitor", snapshot, snapshot, "initial")
+      const stagnant = insights.filter((i) => i.insightType === "stagnant-market")
+      // With prev=next, every region with data fires stagnant-market
+      expect(stagnant.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("brand-gap fires for brands absent from some regions when prev=next", () => {
+      const snapshot: Snapshot = {
+        London: { Subway: 60 },
+        Wales: { McDonalds: 10 },
+      }
+      const insights = runAgent("competitor-tracker", snapshot, snapshot, "initial")
+      const gaps = insights.filter((i) => i.insightType === "brand-gap")
+      expect(gaps.length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -250,8 +341,22 @@ describe("agent-engine", () => {
   })
 
   describe("AGENT_DEFINITIONS", () => {
-    it("has exactly 3 agents", () => {
-      expect(AGENT_DEFINITIONS).toHaveLength(3)
+    it("has exactly 4 agents", () => {
+      expect(AGENT_DEFINITIONS).toHaveLength(4)
+    })
+
+    it("delivery-intel is marked as static", () => {
+      const deliveryIntel = AGENT_DEFINITIONS.find((a) => a.id === "delivery-intel")
+      expect(deliveryIntel).toBeDefined()
+      expect(deliveryIntel!.static).toBe(true)
+    })
+
+    it("runAllAgents excludes static agents", () => {
+      const prev: Snapshot = { London: { Subway: 10 } }
+      const next: Snapshot = { London: { Subway: 14 } }
+      const insights = runAllAgents(prev, next, ukConfig, "2020-06")
+      const deliveryInsights = insights.filter((i) => i.agentId === "delivery-intel")
+      expect(deliveryInsights).toHaveLength(0)
     })
 
     it("each agent has required fields", () => {

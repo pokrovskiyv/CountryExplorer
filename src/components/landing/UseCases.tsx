@@ -2,7 +2,7 @@ const useCases = [
   {
     label: "Expansion Teams",
     title: "Find your next location with confidence",
-    desc: "Identify regions with high demand but low competition. See where your brand is underrepresented compared to competitors, and make data-driven decisions about where to expand next.",
+    desc: "Every region is scored from Cold to Hot using a 5-tier system — factoring in competition, population, and growth trends. Identify areas with high demand but low competition, and make data-driven decisions about where to expand next.",
     visual: (
       <svg width="300" height="180" viewBox="0 0 300 180">
         <rect x="10" y="20" width="55" height="140" rx="4" fill="#1e3a8a" opacity="0.4" /><rect x="10" y="80" width="55" height="80" rx="4" fill="#3b82f6" />
@@ -19,8 +19,8 @@ const useCases = [
   },
   {
     label: "Strategy & Analytics",
-    title: "Understand the competitive landscape instantly",
-    desc: "No more days of manual research. Get a complete picture of who operates where, their market share by region, and how it compares to your own presence — all in one view.",
+    title: "Get a competitive brief in seconds, not weeks",
+    desc: "Instead of commissioning custom research, pull a competitive brief on any region in seconds. Market share breakdowns, dominance shifts, and growth trajectories — presented as analysis, not raw numbers.",
     visual: (
       <svg width="300" height="180" viewBox="0 0 300 180">
         <circle cx="150" cy="90" r="70" fill="none" stroke="#2a2d3a" strokeWidth="20" />
@@ -36,7 +36,7 @@ const useCases = [
   {
     label: "Regional Managers",
     title: "Track your region's competitive dynamics",
-    desc: "Drill into your specific region. See exactly how many locations each competitor operates, monitor changes over time, and benchmark your performance against the market.",
+    desc: "Scrub through 10 years of footprint history for your region. Watch how brand positions shifted — which chains expanded aggressively, which lost ground, and where the gaps opened. The patterns are already in the data; now you can see them.",
     visual: (
       <svg width="300" height="180" viewBox="0 0 300 180">
         <text x="20" y="30" fill="#8b8fa3" fontSize="11" fontFamily="sans-serif">North West — Brand Share</text>
@@ -56,7 +56,7 @@ const useCases = [
       </svg>
     ),
   },
-];
+]
 
 const UseCases = () => (
   <section className="max-w-[1100px] mx-auto py-24 px-6">
@@ -77,6 +77,6 @@ const UseCases = () => (
       </div>
     ))}
   </section>
-);
+)
 
-export default UseCases;
+export default UseCases

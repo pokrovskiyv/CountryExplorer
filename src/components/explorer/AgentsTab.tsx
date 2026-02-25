@@ -1,4 +1,4 @@
-import { TrendingUp, Crosshair, Compass } from "lucide-react"
+import { TrendingUp, Crosshair, Compass, Truck } from "lucide-react"
 import { AGENT_DEFINITIONS, type AgentId, type AgentInsight } from "@/lib/agent-engine"
 import type { AgentStatus } from "@/hooks/useAgents"
 
@@ -11,6 +11,7 @@ const AGENT_ICONS: Record<AgentId, typeof TrendingUp> = {
   "market-monitor": TrendingUp,
   "competitor-tracker": Crosshair,
   "expansion-scout": Compass,
+  "delivery-intel": Truck,
 }
 
 const AGENT_COLORS: Record<string, { dot: string; bg: string; border: string; text: string }> = {
@@ -31,6 +32,12 @@ const AGENT_COLORS: Record<string, { dot: string; bg: string; border: string; te
     bg: "bg-purple-500/10",
     border: "border-purple-500/30",
     text: "text-purple-400",
+  },
+  blue: {
+    dot: "bg-blue-400",
+    bg: "bg-blue-500/10",
+    border: "border-blue-500/30",
+    text: "text-blue-400",
   },
 }
 
@@ -111,7 +118,7 @@ const AgentsTab = ({ insights, agentStatuses }: AgentsTabProps) => {
 
       {insights.length === 0 && (
         <p className="text-muted-foreground text-xs py-4">
-          No insights yet. Advance the timeline to let agents analyze market changes.
+          Agents are analyzing market data...
         </p>
       )}
     </div>
