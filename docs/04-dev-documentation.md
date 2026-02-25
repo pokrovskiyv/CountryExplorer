@@ -11,17 +11,19 @@
 └──────────────┘     └──────────────┘     └──────────────────┘
        │                    │                       │
        ▼                    ▼                       ▼
-  Leaflet/MapLibre    PostGIS queries         Brand scrapers
-  Chart.js/Recharts   Aggregation cache       GeoJSON normalization
-  State (Zustand)     Auth & permissions      Population data enrichment
+  Leaflet/react-leaflet  Supabase + local data  Brand scrapers
+  Recharts (Radar)       Aggregation cache      GeoJSON normalization
+  Context + Hooks        Auth & permissions     Population data enrichment
 ```
 
-### Технологический стек (предложение)
-- **Frontend:** React 18+ / Next.js, TypeScript, Leaflet или MapLibre GL JS, Recharts/Chart.js, Zustand для state
-- **Backend:** Существующий API Getplace + новые endpoints
-- **Database:** PostgreSQL + PostGIS (для пространственных запросов)
-- **Cache:** Redis для агрегированных метрик по регионам
-- **Data format:** GeoJSON (source) → TopoJSON (delivery) → Vector Tiles (scale)
+### Технологический стек (реализованный)
+- **Frontend:** React 18, TypeScript, Vite (build), Tailwind CSS + shadcn/ui
+- **Карта:** Leaflet + react-leaflet, leaflet.heat (heatmap), CartoCDN tiles (light/dark)
+- **Графики:** Recharts (Radar page)
+- **State management:** React Context (CountryContext) + custom hooks (без Zustand)
+- **Backend:** Supabase (brand-points, countries API)
+- **Тестирование:** Vitest + Testing Library
+- **Data format:** TopoJSON для доставки геометрий
 
 ---
 
@@ -210,75 +212,237 @@ CREATE INDEX idx_locations_status ON locations(status);
 ## 4. Frontend — Структура компонентов
 
 ```
-CountryExplorer/
-├── CountryExplorerPage.tsx          # Основная страница
+src/
+├── App.tsx                        # Root component: routing (Explorer, LandingPage, NotFound)
+├── main.tsx                       # Entry point: ReactDOM.createRoot
+├── pages/
+│   ├── Explorer.tsx               # Главная страница — оркестрация всех хуков
+│   ├── LandingPage.tsx            # Marketing landing page
+│   └── NotFound.tsx               # 404
 ├── components/
-│   ├── Header/
-│   │   ├── Header.tsx               # Навигация, выбор страны
-│   │   └── ViewTabs.tsx             # Map / Table переключатель
-│   ├── Sidebar/
-│   │   ├── Sidebar.tsx              # Левая панель
-│   │   ├── BrandSelector.tsx        # Toggles брендов
-│   │   ├── MetricSelector.tsx       # Выбор метрики для окраски
-│   │   ├── DisplaySelector.tsx      # Regions / Points / Both
-│   │   └── CountrySummary.tsx       # Summary карточки
-│   ├── Map/
-│   │   ├── MapView.tsx              # Leaflet/MapLibre контейнер
-│   │   ├── RegionLayer.tsx          # Хороплетный слой регионов
-│   │   ├── PointsLayer.tsx          # Слой точек (CircleMarkers)
-│   │   ├── MapLegend.tsx            # Легенда
-│   │   └── RegionTooltip.tsx        # Tooltip при наведении
-│   ├── Panel/
-│   │   ├── RegionPanel.tsx          # Правая панель с деталями
-│   │   ├── BrandBreakdown.tsx       # Горизонтальные бары
-│   │   ├── MarketShareChart.tsx     # Doughnut chart
-│   │   └── RegionStats.tsx          # Карточки метрик
-│   └── Table/
-│       ├── TableView.tsx            # Табличный вид
-│       └── SortableHeader.tsx       # Сортируемые заголовки
+│   ├── NavLink.tsx                # Навигационная ссылка (shared)
+│   ├── explorer/                  # Компоненты Explorer view
+│   │   ├── Header.tsx             # Навигация, выбор страны, view tabs (Map/Table/Radar)
+│   │   ├── Sidebar.tsx            # Левая панель: бренды, метрики, display mode, brand groups
+│   │   ├── MapView.tsx            # Leaflet карта: choropleth + points + heatmap
+│   │   ├── RegionPanel.tsx        # Правая панель: детали региона, brand breakdown
+│   │   ├── TableView.tsx          # Табличный вид с сортировкой
+│   │   ├── TimelineSlider.tsx     # Слайдер Jan 2015 – Dec 2025, play/pause
+│   │   ├── AlertsPanel.tsx        # Sheet-панель: 3 таба (Events / Agents / Rules)
+│   │   ├── AlertBadge.tsx         # Badge с кол-вом непрочитанных
+│   │   ├── AgentsTab.tsx          # Карточки 3 агентов с инсайтами
+│   │   ├── BrandGroupManager.tsx  # Управление группами брендов
+│   │   ├── CityBreakdown.tsx      # Drill-down до уровня города
+│   │   └── ThemeToggle.tsx        # Light/Dark/System переключатель
+│   ├── radar/                     # Компоненты Expansion Radar
+│   │   ├── RadarSidebar.tsx       # Выбор бренда, weight sliders, region ranking
+│   │   ├── RadarMapView.tsx       # Карта с цветовой кодировкой по score
+│   │   ├── RadarPanel.tsx         # Правая панель: детали региона, factor breakdown
+│   │   ├── WeightSliders.tsx      # 4 слайдера весов факторов
+│   │   ├── RegionRankingList.tsx  # Ранжированный список регионов
+│   │   ├── ScoreGauge.tsx         # Визуализация composite score
+│   │   ├── ScoreBadge.tsx         # Цветной badge тира (Hot/Warm/...)
+│   │   ├── FactorBreakdown.tsx    # 4 фактора с прогресс-барами
+│   │   ├── StatTiles.tsx          # Карточки метрик
+│   │   ├── InsightCard.tsx        # Карточка инсайта
+│   │   └── ComparativeSnapshot.tsx# Сравнение региона с национальными средними
+│   ├── landing/                   # Компоненты лендинга
+│   │   ├── Hero.tsx, Navbar.tsx, Features.tsx, UseCases.tsx
+│   │   ├── StatsBar.tsx, Screenshot.tsx, CTASection.tsx, Footer.tsx
+│   └── ui/                        # shadcn/ui компоненты (40+ файлов)
 ├── hooks/
-│   ├── useCountryData.ts            # Загрузка данных страны
-│   ├── useRegionStats.ts            # Вычисление метрик
-│   └── useMapInteraction.ts         # Состояние карты
-├── store/
-│   └── explorerStore.ts             # Zustand store
-└── utils/
-    ├── colors.ts                    # Цветовые шкалы
-    ├── metrics.ts                   # Вычисление метрик
-    └── geo.ts                       # Гео-утилиты
+│   ├── useTimeline.ts             # Timeline state: month 0-131, play/pause, speed, visibleIndices
+│   ├── useAlerts.ts               # Alert rules (localStorage) + event evaluation
+│   ├── useAgents.ts               # 3 AI-агента, insight generation, read/unread tracking
+│   ├── useBrandGroups.ts          # Brand groups CRUD + localStorage persistence
+│   ├── useExpansionRadar.ts       # Radar state: target brand, weights, scores, region selection
+│   ├── useTheme.ts                # Light/Dark/System theme + localStorage
+│   ├── useCountryData.ts          # Загрузка и мемоизация CountryConfig
+│   ├── useResolvedTheme.ts        # Resolved theme value (for map tiles)
+│   ├── use-mobile.tsx             # Mobile breakpoint detection
+│   └── use-toast.ts               # Toast notifications hook
+├── contexts/
+│   └── CountryContext.tsx          # CountryConfig: brands, regionCounts, population, brandPoints, etc.
+├── lib/
+│   ├── agent-engine.ts            # 3 агента × 4 insight types = 12 типов инсайтов
+│   ├── alert-engine.ts            # evaluateAlerts + buildSnapshot (pure functions)
+│   ├── expansion-scoring.ts       # 4 sub-scores, composite scoring, tiers
+│   ├── city-aggregation.ts        # Агрегация точек по городам
+│   ├── derived-metrics.ts         # Вычисление density, share
+│   ├── export-csv.ts              # CSV export
+│   ├── export-pdf.ts              # PDF snapshot export
+│   ├── feed-types.ts              # Unified feed type definitions
+│   ├── insight-generator.ts       # High-level insight generator
+│   ├── opportunity-colors.ts      # Цветовые шкалы для Radar тиров
+│   ├── utils.ts                   # cn() и общие утилиты
+│   └── api/
+│       ├── brand-points.ts        # Supabase API: загрузка brand points
+│       └── countries.ts           # Supabase API: загрузка списка стран
+├── data/
+│   ├── uk-data.ts                 # Статические данные UK (regions, brands, population)
+│   ├── brand-points.ts            # Brand point coordinates and metadata
+│   ├── country-configs.ts         # COUNTRY_CONFIGS registry
+│   ├── city-region-mapping.ts     # city → region lookup table
+│   └── temporal-data.ts           # OPEN_DATES: synthetic opening dates per brand
+├── integrations/
+│   └── supabase/
+│       ├── client.ts              # Supabase client initialization
+│       └── types.ts               # Database type definitions
+└── test/
+    ├── setup.ts                   # Vitest setup
+    ├── agent-engine.test.ts       # Agent engine tests
+    ├── alert-engine.test.ts       # Alert engine tests
+    ├── expansion-scoring.test.ts  # Expansion scoring tests
+    ├── timeline.test.ts           # Timeline logic tests
+    ├── brand-groups.test.ts       # Brand groups tests
+    ├── city-aggregation.test.ts   # City aggregation tests
+    ├── export-csv.test.ts         # CSV export tests
+    ├── country-context.test.ts    # Context tests
+    ├── api-integration.test.ts    # API integration tests
+    └── example.test.ts            # Example/smoke test
 ```
 
-## 5. Состояние приложения (Zustand Store)
+## 5. Архитектура состояния (Context + Custom Hooks)
+
+Приложение **не использует Zustand**. Вместо этого — `CountryContext` для конфигурации страны и набор custom hooks как state containers в `Explorer.tsx`.
+
+### CountryContext
 
 ```typescript
-interface ExplorerState {
-  // Country
-  selectedCountry: string;
-
-  // Brands
-  selectedBrands: Set<string>;
-  toggleBrand: (brandSlug: string) => void;
-
-  // Metric & Display
-  colorMetric: 'total' | 'density' | 'share';
-  displayMode: 'choropleth' | 'points' | 'both';
-  setColorMetric: (metric: ColorMetric) => void;
-  setDisplayMode: (mode: DisplayMode) => void;
-
-  // Region selection
-  selectedRegion: string | null;
-  selectRegion: (regionId: string | null) => void;
-
-  // View
-  activeView: 'map' | 'table';
-  setActiveView: (view: View) => void;
-
-  // Table sorting
-  tableSortKey: string;
-  tableSortDirection: 'asc' | 'desc';
-  setTableSort: (key: string) => void;
+interface CountryConfig {
+  readonly code: string
+  readonly name: string
+  readonly brands: Record<string, BrandInfo>
+  readonly regionCounts: Record<string, Record<string, number>>
+  readonly population: Record<string, number>
+  readonly brandPoints: Record<string, readonly [number, number, string, string, string][]>
+  readonly regionCentroids: Record<string, [number, number]>
+  readonly interpolateColor: (t: number) => string
+  readonly mapCenter: [number, number]
+  readonly mapZoom: number
+  readonly cityToRegion: Record<string, string>
 }
 ```
+
+### Custom Hooks — State Containers
+
+| Hook | Назначение | Ключевое состояние |
+|------|------------|-------------------|
+| `useTimeline` | Временная шкала | `currentMonth` (0-131), `isPlaying`, `speed`, `visibleIndices` |
+| `useAlerts` | Система алертов | `rules` (localStorage), `events`, `unreadCount` |
+| `useAgents` | AI-агенты | `insights` (до 50), `agentStatuses`, `unreadCount` |
+| `useBrandGroups` | Группы брендов | `groups` (default + custom), CRUD + localStorage |
+| `useExpansionRadar` | Radar scoring | `targetBrand`, `weights`, `scores`, `selectedRegion` |
+| `useTheme` | Тема оформления | `theme` (light/dark/system), `resolved`, `toggle` |
+| `useCountryData` | Данные страны | `config` (CountryConfig), `isLoading` |
+
+Все хуки оркестрируются в `Explorer.tsx`, который передаёт данные вниз через props.
+
+## 5a. Архитектура Agent Team
+
+### Агенты
+
+3 специализированных агента, каждый анализирует snapshot переходы (prevSnapshot → nextSnapshot):
+
+| Агент | ID | Tagline | Типы инсайтов |
+|-------|-----|---------|---------------|
+| Market Monitor | `market-monitor` | Tracks growth trends and market dynamics | rapid-growth, regional-leader-shift, market-acceleration, stagnant-market |
+| Competitor Tracker | `competitor-tracker` | Identifies competitive threats and openings | brand-dominance, competitive-entry, flanking-threat, brand-gap |
+| Expansion Scout | `expansion-scout` | Discovers expansion opportunities | hot-opportunity, tier-upgrade, multi-brand-opportunity, saturated-region-warning |
+
+### 12 типов инсайтов
+
+| Тип | Агент | Триггер | Приоритет |
+|-----|-------|---------|-----------|
+| `rapid-growth` | Market Monitor | Бренд добавил ≥3 локации в регионе за месяц | 2 |
+| `regional-leader-shift` | Market Monitor | Топ-бренд в регионе сменился | 1 |
+| `market-acceleration` | Market Monitor | Бренд растёт на 50%+ быстрее среднего | 2 |
+| `stagnant-market` | Market Monitor | Ноль чистых открытий в регионе за месяц | 4 |
+| `brand-dominance` | Competitor Tracker | Бренд контролирует >35% доли в регионе | 2 |
+| `competitive-entry` | Competitor Tracker | Бренд вошёл в регион, где у rival >30 локаций | 1 |
+| `flanking-threat` | Competitor Tracker | 2+ бренда одновременно растут (≥2 каждый) в регионе | 3 |
+| `brand-gap` | Competitor Tracker | Бренд с >50 нац. локациями отсутствует в регионе | 3 |
+| `hot-opportunity` | Expansion Scout | Регион получил тир Hot для бренда | 2 |
+| `tier-upgrade` | Expansion Scout | Регион перешёл из Warm в Hot | 1 |
+| `multi-brand-opportunity` | Expansion Scout | Регион Hot для ≥2 брендов | 1 |
+| `saturated-region-warning` | Expansion Scout | Все бренды Cold в регионе | 4 |
+
+### Data Flow
+
+```
+Timeline month change
+  → buildSnapshot(month, openDates, brandPoints, cityToRegion)
+  → prevSnapshot vs nextSnapshot
+  → runAllAgents(prev, next, countryConfig, monthDate)
+  → AgentInsight[] (sorted by priority)
+  → useAgents state (max 50 insights, FIFO)
+  → AlertsPanel → AgentsTab UI
+```
+
+Все функции — pure (без side effects). Агенты rule-based, не используют LLM.
+
+## 5b. Система алертов
+
+### Типы правил
+
+| Тип | Триггер | Пример |
+|-----|---------|--------|
+| `threshold` | Бренд превысил N локаций в регионе | «Subway exceeded 200 locations in London» |
+| `change` | Бренд вошёл/вышел из региона | «KFC entered Northern Ireland» |
+| `competitor` | Rival бренд появился в регионе, где уже есть target бренд | «Dominos opened near Subway in Scotland» |
+
+### Персистентность
+- Правила (AlertRule[]) хранятся в `localStorage` под ключом `explorer-alert-rules`
+- События (AlertEvent[]) — in-memory, максимум 100, FIFO
+- Состояние read/unread — in-memory
+
+### Evaluation
+`evaluateAlerts(rules, prevSnapshot, nextSnapshot, monthDate)` — pure function, вызывается из `useAlerts` при каждом изменении `currentMonth` в timeline.
+
+## 5c. Expansion Radar — система скоринга
+
+### 4 фактора (sub-scores, 0-100)
+
+| Фактор | Вес по умолчанию | Логика |
+|--------|-----------------|--------|
+| Penetration Gap | 35% | 1 − (regional density / national avg density) |
+| Competitor Presence | 25% | Плотность конкурентов относительно максимума |
+| Population Score | 20% | Население региона / max население |
+| Density Headroom | 20% | 1 − (total density / max total density) |
+
+### Composite Score
+```
+composite = Σ(sub_score × weight) / Σ(weights)   → clamp(0, 100)
+```
+
+### Тиры
+
+| Тир | Score range | Интерпретация |
+|-----|-----------|---------------|
+| Hot | 80-100 | Высший приоритет для экспансии |
+| Warm | 60-79 | Сильный потенциал |
+| Moderate | 40-59 | Умеренные возможности |
+| Cool | 20-39 | Низкий приоритет |
+| Cold | 0-19 | Рынок насыщен или непривлекателен |
+
+Веса настраиваются через UI (WeightSliders). Все вычисления — pure functions в `expansion-scoring.ts`.
+
+## 5d. Timeline — временная динамика
+
+### Параметры
+- **Диапазон:** Jan 2015 – Dec 2025 (month index 0-131)
+- **По умолчанию:** month 131 (Dec 2025 — текущий snapshot)
+- **Скорость:** 200ms / speed на один месяц (speed = 1x, 2x, 4x)
+
+### Механизм
+1. `temporal-data.ts` содержит `OPEN_DATES` — synthetic opening dates для каждого бренда
+2. `buildSnapshot(month, openDates, brandPoints, cityToRegion)` строит срез region→brand→count по cutoff date
+3. `getVisibleIndicesForMonth(month)` возвращает индексы видимых точек per brand
+4. При изменении month — пересчитываются `visibleIndices`, передаются в `MapView` и `Sidebar`
+5. `useAlerts` и `useAgents` реагируют на month change, генерируя events/insights
+
+### Play/Pause
+При нажатии Play — автоматическое инкрементирование month через `setInterval`. При достижении MAX_MONTH (131) — автоматическая остановка. При повторном Play от конца — restart с month 0.
 
 ## 6. Поведение элементов интерфейса
 
@@ -352,6 +516,54 @@ interface ExplorerState {
 - При переключении на Map — вызывается map.invalidateSize() с задержкой 100ms
 - State (выбранные бренды, метрика) сохраняется при переключении
 - URL обновляется: `/explorer/uk?view=map&brands=subway,kfc&metric=density`
+
+### Heatmap mode
+- Display mode "heatmap" в Sidebar
+- Использует leaflet.heat plugin
+- Интенсивность определяется количеством точек
+- Переключается через 4-позиционный selector: Regions / Points / Both / Heatmap
+
+### Timeline Slider (TimelineSlider)
+- Горизонтальная полоса под Header, над контентом
+- Показывает текущий месяц/год (например, "Mar 2020")
+- Кнопка Play/Pause слева
+- При перетаскивании — мгновенное обновление карты и sidebar counts
+- Скрывается в Radar view
+
+### AlertsPanel
+- Sheet-панель (shadcn Sheet), открывается по клику на badge в Header
+- 3 таба:
+  - **Events** — хронологический список сработавших алертов
+  - **Agents** — карточки 3 агентов с инсайтами (AgentsTab)
+  - **Rules** — список правил + форма создания нового правила
+- Badge в Header показывает суммарный unread count (alerts + agent insights)
+
+### AgentsTab
+- 3 карточки агентов с цветовой индикацией: emerald (Market Monitor), red (Competitor Tracker), purple (Expansion Scout)
+- Статус: idle (серый) / alerting (пульсирующий цветной)
+- Разворачиваемый список инсайтов per agent
+- Кнопка «Mark all read»
+
+### BrandGroupManager
+- Аккордеон в Sidebar
+- Предустановленные группы: All Brands, Pizza, Chicken & Burgers
+- Кнопка «Create group» — выбор брендов + название
+- Клик по группе — применяет фильтр (setSelectedBrands)
+- Custom groups удаляются, default — нет
+
+### ThemeToggle
+- Иконка Sun/Moon в Header
+- 3 режима: Light / Dark / System
+- При переключении:
+  - Toggle CSS class `dark` на `<html>`
+  - Тайлы карты переключаются между CartoCDN light_all и dark_all
+  - Сохраняется в localStorage
+
+### City Drill-down (CityBreakdown)
+- Появляется в RegionPanel при выборе региона
+- Агрегация точек по городам через `city-aggregation.ts`
+- Сортировка городов по количеству точек
+- Показывает breakdown по брендам в каждом городе
 
 ## 7. Работа с данными
 
