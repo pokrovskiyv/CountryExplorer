@@ -12,8 +12,10 @@ import { useExpansionRadar } from "@/hooks/useExpansionRadar";
 import { useBrandGroups } from "@/hooks/useBrandGroups";
 import { useTimeline } from "@/hooks/useTimeline";
 import TimelineSlider from "@/components/explorer/TimelineSlider";
+import AlertsPanel from "@/components/explorer/AlertsPanel";
 import { CountryProvider } from "@/contexts/CountryContext";
 import { COUNTRY_CONFIGS } from "@/data/country-configs";
+import { useAlerts } from "@/hooks/useAlerts";
 
 type CountryCode = "uk" | "de";
 type Metric = "total" | "density" | "share";
@@ -63,6 +65,8 @@ const Explorer = () => {
   const radar = useExpansionRadar(activeView === "radar", scoringData);
   const { groups: brandGroups, createGroup: createBrandGroup, deleteGroup: deleteBrandGroup } = useBrandGroups(countryConfig.brands);
   const timeline = useTimeline();
+  const alerts = useAlerts(timeline.currentMonth, countryConfig);
+  const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
 
   const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
     setSelectedBrands(new Set(brands));
@@ -131,6 +135,17 @@ const Explorer = () => {
           contentRef={contentRef}
           activeCountry={activeCountry}
           onCountryChange={handleCountryChange}
+          alertUnreadCount={alerts.unreadCount}
+          onAlertClick={() => setAlertsPanelOpen(true)}
+        />
+        <AlertsPanel
+          open={alertsPanelOpen}
+          onClose={() => setAlertsPanelOpen(false)}
+          rules={alerts.rules}
+          events={alerts.events}
+          onAddRule={alerts.addRule}
+          onRemoveRule={alerts.removeRule}
+          onMarkAllRead={alerts.markAllRead}
         />
         {activeView !== "radar" && (
           <TimelineSlider

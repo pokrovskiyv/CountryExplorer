@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Crosshair, FileDown } from "lucide-react";
 import { exportViewAsPDF } from "@/lib/export-pdf";
+import AlertBadge from "./AlertBadge";
 
 export type ViewType = "map" | "table" | "radar";
 
@@ -10,6 +11,8 @@ interface HeaderProps {
   contentRef?: React.RefObject<HTMLDivElement>;
   activeCountry: string;
   onCountryChange: (code: "uk" | "de") => void;
+  alertUnreadCount: number;
+  onAlertClick: () => void;
 }
 
 const GlobeIcon = () => (
@@ -30,7 +33,7 @@ const COUNTRIES = [
   { code: "de" as const, label: "\u{1F1E9}\u{1F1EA} Germany" },
 ];
 
-const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange }: HeaderProps) => (
+const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountryChange, alertUnreadCount, onAlertClick }: HeaderProps) => (
   <div className="h-14 bg-[hsl(230,25%,10%)] border-b border-border flex items-center px-5 gap-4 z-50 relative shrink-0">
     <Link to="/" className="flex items-center gap-2 text-lg font-bold text-foreground">
       <GlobeIcon />
@@ -66,6 +69,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
         Export PDF
       </button>
     )}
+    <AlertBadge unreadCount={alertUnreadCount} onClick={onAlertClick} />
     <select
       value={activeCountry}
       onChange={(e) => onCountryChange(e.target.value as "uk" | "de")}
