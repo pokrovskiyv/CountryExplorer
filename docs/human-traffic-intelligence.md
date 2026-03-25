@@ -162,7 +162,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 | Скрипт | Вход | Выход | Что делает |
 |--------|------|-------|-----------|
 | `scripts/download-external-data.sh` | — | CSV файлы в `src/data/Data for assignment/external/` | Скачивает все датасеты |
-| `scripts/convert-stations.py` | ORR CSV + NaPTAN CSV + brand GeoJSON | `src/data/station-data.ts` (2,366 станций) | Джойнит станции с координатами (fuzzy match 99.92%), считает QSR в радиусе 400м/800м/1500м, привязывает к регионам (point-in-polygon) |
+| `scripts/convert-stations.py` | ORR CSV + NaPTAN CSV + brand GeoJSON | `src/data/station-data.ts` (2,361 станция) | Джойнит ORR (2,589 станций) с NaPTAN координатами (fuzzy match 99.92% = 2,587), фильтрует до 2,361 с region assignment, считает QSR в радиусе 400м/800м/1500м |
 | `scripts/convert-bus-density.py` | NaPTAN CSV + station-data.ts | Обогащает `station-data.ts` полем busStopCount800m | Считает автобусные остановки в радиусе 800м от каждой станции (371K stops) |
 | `scripts/convert-traffic.py` | DfT AADF CSV + brand GeoJSON | `src/data/traffic-data.ts` (5,000 точек) | Фильтрует топ-5000 по трафику, считает drive-thru в радиусе 1.5км |
 | `scripts/convert-demographics.py` | IMD 2025 CSV | `src/data/demographic-data.ts` (9 регионов) | Агрегирует 33,755 LSOA в 9 английских регионов |
@@ -297,7 +297,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 
 **4. Нет outcome validation.** Веса основаны на research + expert judgment, не на regression "рекомендация → открытие → успех". Для regression нужны данные о реальных открытиях — это следующий этап.
 
-**5. Demo fit в деловых кварталах.** IMD income decile измеряет доход *жителей*, а не дневной толпы. В City of London 8,600 жителей, но 89,000 workers — lunch crowd приезжает из районов с decile от 2 до 10. Для станций с 50K+ workplace population в 1.5km сигнал переводится в neutral (0.5) вместо расчёта по residential income. 62 станции попадают под эту коррекцию.
+**5. Demo fit в деловых кварталах.** IMD income decile измеряет доход *жителей*, а не дневной толпы. В City of London 8,600 жителей, но 89,000 workers — lunch crowd приезжает из районов с decile от 2 до 10. Для станций с 50K+ workplace population в 1.5km вместо residential income decile используется **SIC-weighted estimated worker salary** (BRES employment × ASHE median pay). Это даёт data-driven оценку lunch crowd вместо нерелевантных residential данных. 62 станции попадают под эту коррекцию. Ограничение: ASHE median pay — национальные цифры (не региональные), поэтому диапазон сжат (£23K–£35K вместо реальных ~£18K–£55K).
 
 #### Changelog модели
 
@@ -308,7 +308,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 
 #### Как мы это позиционируем
 
-> "Мы не утверждаем, что модель идеальна. Мы показываем, что **9 независимых источников данных** — от государственных (ORR, NaPTAN, DfT, IMD, Census, BRES, ASHE) до коммерческих (Getplace) — **сходятся на одной локации**. Каждый сигнал имеет обоснование из индустриальных исследований. А breakdown по сигналам позволяет клиенту самому решить, какой фактор для его бренда важнее. Это не оракул — это intelligence framework."
+> "Мы не утверждаем, что модель идеальна. Мы показываем, что **8 независимых источников данных** — государственные (ORR, NaPTAN, DfT, IMD, Census, BRES, ASHE) и коммерческие (Getplace) — **сходятся на одной локации**. Каждый сигнал имеет обоснование из индустриальных исследований. А breakdown по сигналам позволяет клиенту самому решить, какой фактор для его бренда важнее. Это не оракул — это intelligence framework."
 
 | Тип инсайта | Приоритет | Когда срабатывает | Пример |
 |-------------|-----------|-------------------|--------|
