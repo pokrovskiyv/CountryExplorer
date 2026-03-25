@@ -8,7 +8,7 @@ Country Explorer изначально позиционировался как **
 
 **Задача:** Показать, что Getplace умеет анализировать данные, замечать паттерн, формулировать гипотезу и выдавать ценный для компании инсайт — автоматически.
 
-**Решение:** 3 новых агента, которые накладывают внешние UK open data (пассажирский трафик ж/д станций, дорожный трафик, плотность автобусных остановок, демография) на существующие 21,263 ресторанных точек.
+**Решение:** 3 новых агента, которые накладывают внешние UK open data (пассажирский трафик ж/д станций, дорожный трафик, плотность автобусных остановок, демография) на существующие 21,263 ресторанных точек. Результаты доступны через toggleable map layers и Insights view (default view платформы).
 
 ---
 
@@ -347,22 +347,37 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 
 ### Landing page
 
-- Hero: "Seven intelligent agents" (было "Four")
-- Features: "Seven specialized agents analyze competitive data, transit footfall, road traffic, and demographics"
-- `LANDING_AGENTS`: 3 новые карточки с example insights
+- Hero: "Find your next 50 locations before competitors do" (insights-first messaging)
+- Features: benefit-focused titles ("See where competitors win", "7 AI agents working for you", "Never miss a competitive move")
+- `LANDING_AGENTS`: 7 карточек с example insights
+- "See the Platform" и "Try Explorer" ведут на `/explorer#opportunities` (Insights view)
 
-### Карта (MapView.tsx)
+### Карта (MapView.tsx) — toggleable data layers
 
-- Новый prop `showStations` — toggle для слоя станций
-- Маркеры станций: CircleMarker с размером пропорционально трафику, цветом по underserved/ok
-- Красный (<3 QSR) → Оранжевый (<8 QSR) → Зелёный (8+ QSR)
-- Клик на маркер → popup с:
-  - Название станции и регион
-  - Пассажиры/год (число)
-  - Кол-во QSR ~13 min walk
-  - Плотность автобусных остановок (high/moderate/low pedestrian area)
-  - Какие бренды ✓ есть и ✗ отсутствуют
-- Toggle в сайдбаре: секция "Overlays" → кнопка "🚉 Station footfall"
+Три overlay-слоя, каждый — отдельный `useEffect` в MapView, читает `mapRef.current` напрямую:
+
+**1. Station analysis** (merged footfall + opportunity score)
+- Размер маркера = passenger volume (3–12px, пропорционально annualEntries)
+- Цвет = opportunity confidence: зелёный (high), оранжевый (medium), серый (low), светло-серый (not scored)
+- Popup объединяет: footfall + QSR count + bus stops + brand presence/absence + opportunity score badge + 7-signal breakdown (если есть scoring data)
+- Toggle в sidebar: секция "Stations & Opportunities" → "Station analysis"
+
+**2. Road traffic flow** (heatmap + drive-thru markers)
+- Heatmap всех точек + отдельные CircleMarkers для drive-thru opportunities (AADF ≥50K, <2 drive-thru)
+- Sub-filter: "High-traffic roads only (50k+ vehicles/day)"
+- Toggle в sidebar: секция "Road Traffic"
+
+**3. Demographic overlays** (Income level / Deprivation index)
+- Перекрашивают region polygons по income decile или IMD score
+- Hover сохраняет демографический цвет (через `demoActiveStylesRef`)
+- Взаимоисключающие — включение одного выключает другой
+- Toggle в sidebar: секция "Demographics"
+
+**Sidebar structure:** Brand Groups → Brands → Data Layers → Map Style → Country Summary
+
+**Нет жаргона:** "Choropleth" → "Regions", "AADF" → "vehicles/day", "IMD" → "Deprivation index", "Per 100k pop." → "Per 100k people"
+
+**Default view:** Insights (opportunities), не Map. Landing page links тоже ведут на `#opportunities`.
 
 ---
 
@@ -375,10 +390,10 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 **Задача:** Найти лучшие локации для открытия новых точек в Англии.
 
 **Действия:**
-1. Открыть Explorer → Agents tab → найти инсайты Opportunity Engine
+1. Открыть Explorer → default view Insights → видит топ-станции с opportunity scores
 2. Видит: *"Nandos at London Liverpool Street: 2 signals (high-footfall + high-pedestrian), score 95/100. 98M passengers/year, 11 QSR ~13 min walk"*
-3. Включает Station footfall overlay → зумит к Liverpool Street → кликает на маркер
-4. Popup показывает: 98M пассажиров, 11 QSR рядом, 234 bus stops (high pedestrian area), Nandos отсутствует но McDonald's, KFC и Subway есть
+3. Переключается на Map → включает слой "Station analysis" → зумит к Liverpool Street → кликает на маркер
+4. Popup показывает: opportunity score 95, 98M пассажиров, 11 QSR рядом, 234 bus stops (high pedestrian area), 7-signal breakdown, Nandos отсутствует но McDonald's, KFC и Subway есть
 5. **Вывод:** Спрос доказан (конкуренты уже стоят), трафик огромный, район оживлённый — но Nandos нет. Это приоритетная локация.
 
 **Ценность:** Expansion Manager видит только свои точки. Getplace показывает ему данные всех конкурентов + внешний трафик + пешеходную активность, и сам подсвечивает лучшие возможности.
@@ -393,7 +408,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 1. Agents tab → Market Fit Analyst показывает: *"Nandos (premium brand) has 37% fewer locations per capita in East Midlands — despite income decile 6"*
 2. Открывает карту → выбирает East Midlands → drill-down по регионам
 3. Видит: Nandos 42 точки, McDonald's 120, KFC 85. Доля Nandos 10% vs 15% nationally
-4. Включает Station footfall → видит красные маркеры (underserved станции) в Nottingham, Leicester, Derby
+4. Включает слой "Station analysis" → видит серые/оранжевые маркеры (low/medium opportunity) в Nottingham, Leicester, Derby
 5. **Вывод:** East Midlands — состоятельный регион (income decile 6), но Nandos недопредставлен на 37%. Конкуренты уже там. Это аномалия — нужно наращивать присутствие.
 
 **Ценность:** Стратег знает свои цифры, но не видит, как они соотносятся с демографией и конкурентами. Getplace показывает разрыв между потенциалом региона и текущим присутствием бренда.
@@ -406,9 +421,9 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 
 **Действия:**
 1. Agents tab → Human Flow Analyst: *"Canada Water: 18.7M passengers/year but only 1 QSR ~13 min walk"*
-2. Включает Station footfall + Display: Both (рестораны + станции)
-3. Зумит к Canada Water → видит: огромный красный маркер (18.7M трафик), почти нет ресторанных точек рядом
-4. Кликает popup: 18.7M пассажиров, 1 QSR, bus stops: 45 (high pedestrian), Missing: McDonalds, Dominos, KFC, Nandos, PapaJohns
+2. Включает "Station analysis" + Display: Both (рестораны + станции)
+3. Зумит к Canada Water → видит: крупный зелёный маркер (high opportunity, 18.7M трафик), почти нет ресторанных точек рядом
+4. Кликает popup: opportunity score, 18.7M пассажиров, 1 QSR, bus stops: 45 (high pedestrian), 7-signal breakdown, Missing: McDonalds, Dominos, KFC, Nandos, PapaJohns
 5. Сравнивает с соседними станциями (London Bridge — 115M, 25 QSR, зелёный маркер)
 6. **Вывод:** Canada Water — "пустая" станция с огромным трафиком. Почти весь QSR сосредоточен на London Bridge. Это gap — 18.7M человек проходят мимо, а кормить их нечем.
 
@@ -426,7 +441,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
    - Human Flow: *"London Liverpool Street (98M) has McDonalds, KFC, Nandos — but zero Subway"*. Wait, Subway IS there. Let me check another: *"London Waterloo (70.4M) has Subway, McDonalds, KFC, Nandos — but zero Dominos"*
    - Market Fit: *"Subway (value brand) has 21% fewer locations per capita in London than national average"*
    - Opportunity Engine: Convergent opportunities для Subway
-3. Делает скриншоты карты с station overlay — красные маркеры вокруг Subway-точек
+3. Делает скриншоты карты со слоем Station analysis — зелёные/оранжевые opportunity маркеры рядом с Subway-точками
 4. В LinkedIn-сообщении: "Заметил, что у Subway на 21% меньше точек на душу населения в Лондоне, чем в среднем по UK — при том что трафик в лондонских станциях огромный. Можем показать 5 конкретных локаций с score 85+."
 
 **Ценность:** Персонализированный outreach на основе реальных данных, а не generic pitch. Потенциальный клиент видит, что Getplace знает его бизнес лучше, чем он сам.
