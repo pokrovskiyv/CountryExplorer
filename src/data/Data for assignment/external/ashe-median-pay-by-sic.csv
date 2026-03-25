@@ -1,0 +1,20 @@
+sic_section,sic_name,median_annual_pay,source
+A,Agriculture forestry and fishing,22529,ONS ASHE 2023 Table 16.5a
+B,Mining and quarrying,42182,ONS ASHE 2023 Table 16.5a
+C,Manufacturing,32889,ONS ASHE 2023 Table 16.5a
+D,Electricity gas steam and air conditioning supply,44291,ONS ASHE 2023 Table 16.5a
+E,Water supply sewerage waste management,31737,ONS ASHE 2023 Table 16.5a
+F,Construction,33884,ONS ASHE 2023 Table 16.5a
+G,Wholesale and retail trade,21462,ONS ASHE 2023 Table 16.5a
+H,Transportation and storage,30255,ONS ASHE 2023 Table 16.5a
+I,Accommodation and food service,16440,ONS ASHE 2023 Table 16.5a
+J,Information and communication,43607,ONS ASHE 2023 Table 16.5a
+K,Financial and insurance activities,38150,ONS ASHE 2023 Table 16.5a
+L,Real estate activities,29458,ONS ASHE 2023 Table 16.5a
+M,Professional scientific and technical,35471,ONS ASHE 2023 Table 16.5a
+N,Administrative and support service,22418,ONS ASHE 2023 Table 16.5a
+O,Public administration and defence,33741,ONS ASHE 2023 Table 16.5a
+P,Education,27338,ONS ASHE 2023 Table 16.5a
+Q,Human health and social work,28404,ONS ASHE 2023 Table 16.5a
+R,Arts entertainment and recreation,20792,ONS ASHE 2023 Table 16.5a
+S,Other service activities,23236,ONS ASHE 2023 Table 16.5a
