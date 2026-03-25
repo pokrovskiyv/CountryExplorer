@@ -13,6 +13,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 import pandas as pd
 
+
 @dataclass
 class MicroArea:
     """One LSOA / Data Zone / SOA with fields needed for normalization."""
@@ -216,106 +217,78 @@ def load_nimdm() -> list[MicroArea]:
     return areas
 
 
-def load_imd_data():
-    """Load IMD 2025 File 7 and aggregate to regions."""
+def load_imd_data() -> list[MicroArea]:
+    """Load IMD 2025 File 7 — ~32,844 English LSOAs. Returns list[MicroArea]."""
     imd_file = EXT_DIR / "imd-2025-file7.csv"
     if not imd_file.exists():
         print(f"ERROR: {imd_file} not found. Run download-external-data.sh first.")
         sys.exit(1)
 
-    # Read CSV and discover column names
-    with open(imd_file, encoding="utf-8-sig") as f:
-        reader = csv.DictReader(f)
-        headers = reader.fieldnames
-        print(f"  IMD columns: {headers[:15]}...")
+    df = pd.read_csv(imd_file, encoding="utf-8-sig")
+    headers = list(df.columns)
+    print(f"  IMD columns: {headers[:15]}...")
 
-        # Find key columns (names vary between IMD 2019 and 2025)
-        lsoa_col = find_column(headers, ["LSOA code", "LSOA Code"])
-        la_name_col = find_column(headers, [
-            "Local Authority District name",
-            "Local Authority District Name",
-            "LA District name",
-        ])
-        income_col = find_column(headers, [
-            "Income Score (rate)",
-            "Income Score",
-            "Income - Score",
-        ])
-        employment_col = find_column(headers, [
-            "Employment Score (rate)",
-            "Employment Score",
-            "Employment - Score",
-        ])
-        imd_score_col = find_column(headers, [
-            "Index of Multiple Deprivation (IMD) Score",
-            "IMD Score",
-            "IoD2025 Score",
-            "Index of Multiple Deprivation Score",
-        ])
-        income_decile_col = find_column(headers, [
-            "Income Decile",
-            "Income - Decile",
-            "Income Decile (where 1 is most deprived 10% of LSOAs)",
-        ])
+    la_name_col = find_column(headers, [
+        "Local Authority District name",
+        "Local Authority District Name",
+        "LA District name",
+    ])
+    income_col = find_column(headers, [
+        "Income Score (rate)",
+        "Income Score",
+        "Income - Score",
+    ])
+    employment_col = find_column(headers, [
+        "Employment Score (rate)",
+        "Employment Score",
+        "Employment - Score",
+    ])
+    imd_score_col = find_column(headers, [
+        "Index of Multiple Deprivation (IMD) Score",
+        "IMD Score",
+        "IoD2025 Score",
+        "Index of Multiple Deprivation Score",
+    ])
 
-        if not income_col:
-            print(f"  WARNING: Cannot find income score column. Available: {headers}")
-            # Fall back to IMD score
-            income_col = imd_score_col
+    if not income_col:
+        print(f"  WARNING: Cannot find income score column. Falling back to IMD score.")
+        income_col = imd_score_col
 
-        print(f"  Using columns: income='{income_col}', employment='{employment_col}', "
-              f"la_name='{la_name_col}', income_decile='{income_decile_col}'")
+    print(f"  Using columns: income='{income_col}', employment='{employment_col}', "
+          f"imd_score='{imd_score_col}', la_name='{la_name_col}'")
 
-        # Aggregate by region
-        region_data = defaultdict(lambda: {
-            "income_scores": [],
-            "employment_scores": [],
-            "imd_scores": [],
-            "income_deciles": [],
-            "count": 0,
-        })
+    areas = []
+    unmapped = set()
 
-        unmapped = set()
-        for row in reader:
-            la_name = row.get(la_name_col, "") if la_name_col else ""
-            region = la_to_region(la_name)
+    for _, row in df.iterrows():
+        la_name = str(row[la_name_col]) if la_name_col and pd.notna(row.get(la_name_col)) else ""
+        region = la_to_region(la_name)
 
-            if not region:
-                unmapped.add(la_name)
-                continue
+        if not region:
+            unmapped.add(la_name)
+            continue
 
-            region_data[region]["count"] += 1
+        try:
+            income = float(row[income_col]) if income_col and pd.notna(row.get(income_col)) else 0.0
+            employment = float(row[employment_col]) if employment_col and pd.notna(row.get(employment_col)) else 0.0
+            composite = float(row[imd_score_col]) if imd_score_col and pd.notna(row.get(imd_score_col)) else 0.0
 
-            if income_col and row.get(income_col):
-                try:
-                    region_data[region]["income_scores"].append(float(row[income_col]))
-                except ValueError:
-                    pass
-
-            if employment_col and row.get(employment_col):
-                try:
-                    region_data[region]["employment_scores"].append(float(row[employment_col]))
-                except ValueError:
-                    pass
-
-            if imd_score_col and row.get(imd_score_col):
-                try:
-                    region_data[region]["imd_scores"].append(float(row[imd_score_col]))
-                except ValueError:
-                    pass
-
-            if income_decile_col and row.get(income_decile_col):
-                try:
-                    region_data[region]["income_deciles"].append(int(row[income_decile_col]))
-                except ValueError:
-                    pass
+            areas.append(MicroArea(
+                region=region,
+                income_rate=income,
+                employment_rate=employment,
+                composite_score=composite,
+                nation="england",
+            ))
+        except (ValueError, TypeError):
+            continue
 
     if unmapped:
         print(f"  WARNING: {len(unmapped)} LA districts not mapped to regions")
         if len(unmapped) <= 10:
             print(f"  Unmapped: {list(unmapped)[:10]}")
 
-    return region_data
+    return areas
 
 
 def find_column(headers, candidates):
@@ -492,51 +465,120 @@ def la_to_region(la_name):
     return None
 
 
-def generate_demographic_ts(region_data):
-    """Generate demographic-data.ts from aggregated region data."""
+def compute_uk_income_deciles(all_areas: list[MicroArea]) -> dict[str, int]:
+    """Variant C: normalize income rates across all UK micro-areas into deciles.
+    Returns {region: median_uk_decile}."""
+    sorted_areas = sorted(all_areas, key=lambda a: a.income_rate)
+    n = len(sorted_areas)
+
+    for i, area in enumerate(sorted_areas):
+        percentile = i / max(n - 1, 1)
+        area.uk_decile = 10 - min(int(percentile * 10), 9)
+
+    region_deciles = defaultdict(list)
+    for area in sorted_areas:
+        region_deciles[area.region].append(area.uk_decile)
+
+    result = {}
+    for region, deciles in region_deciles.items():
+        deciles.sort()
+        result[region] = deciles[len(deciles) // 2]
+
+    return result
+
+
+NATION_META = {
+    "england": {"source": "IMD 2025", "label": "LSOAs"},
+    "wales": {"source": "WIMD 2025", "label": "LSOAs"},
+    "scotland": {"source": "SIMD 2020", "label": "Data Zones"},
+    "ni": {"source": "NIMDM 2017", "label": "SOAs"},
+}
+
+
+def aggregate_regions(all_areas: list[MicroArea], uk_deciles: dict[str, int]) -> list[dict]:
+    """Aggregate micro-areas to region-level records."""
+    region_data = defaultdict(lambda: {
+        "income_rates": [], "employment_rates": [], "composite_scores": [],
+        "count": 0, "nation": None,
+    })
+
+    for area in all_areas:
+        rd = region_data[area.region]
+        rd["income_rates"].append(area.income_rate)
+        rd["employment_rates"].append(area.employment_rate)
+        rd["composite_scores"].append(area.composite_score)
+        rd["count"] += 1
+        rd["nation"] = area.nation
+
     region_order = [
         "North East (England)", "North West (England)", "Yorkshire and The Humber",
         "East Midlands (England)", "West Midlands (England)", "East (England)",
         "London", "South East (England)", "South West (England)",
-        "Wales",
+        "Wales", "Scotland", "Northern Ireland",
     ]
 
-    lines = []
-    lines.append("// UK region demographic data from Index of Multiple Deprivation 2025")
-    lines.append("// Source: gov.uk IMD 2025 File 7 (OGL v3.0)")
-    lines.append("// Aggregated from ~33,755 LSOA rows to region level")
-    lines.append("// Generated by scripts/convert-demographics.py")
-    lines.append("")
-    lines.append("export interface RegionDemographics {")
-    lines.append("  readonly region: string")
-    lines.append("  readonly avgIncomeScore: number")
-    lines.append("  readonly avgEmploymentScore: number")
-    lines.append("  readonly medianIncomeDecile: number")
-    lines.append("  readonly avgImdScore: number")
-    lines.append("  readonly lsoaCount: number")
-    lines.append("}")
-    lines.append("")
-    lines.append("export const REGION_DEMOGRAPHICS: readonly RegionDemographics[] = [")
-
+    records = []
     for region in region_order:
         data = region_data.get(region)
         if not data or data["count"] == 0:
             print(f"  WARNING: No data for region '{region}'")
             continue
 
-        avg_income = sum(data["income_scores"]) / len(data["income_scores"]) if data["income_scores"] else 0
-        avg_employment = sum(data["employment_scores"]) / len(data["employment_scores"]) if data["employment_scores"] else 0
-        avg_imd = sum(data["imd_scores"]) / len(data["imd_scores"]) if data["imd_scores"] else 0
+        meta = NATION_META[data["nation"]]
+        avg_income = sum(data["income_rates"]) / len(data["income_rates"])
+        avg_employment = sum(data["employment_rates"]) / len(data["employment_rates"])
+        avg_composite = sum(data["composite_scores"]) / len(data["composite_scores"])
+        median_decile = uk_deciles.get(region, 5)
 
-        sorted_deciles = sorted(data["income_deciles"])
-        median_decile = sorted_deciles[len(sorted_deciles) // 2] if sorted_deciles else 5
+        records.append({
+            "region": region,
+            "avgIncomeScore": avg_income,
+            "avgEmploymentScore": avg_employment,
+            "medianIncomeDecile": median_decile,
+            "avgImdScore": avg_composite,
+            "lsoaCount": data["count"],
+            "deprivationSource": meta["source"],
+            "microAreaLabel": meta["label"],
+        })
+
+    return records
+
+
+def generate_demographic_ts(records: list[dict]):
+    """Generate demographic-data.ts with expanded interface."""
+    lines = [
+        "// UK region demographic data from deprivation indices across 4 nations",
+        "// Sources: IMD 2025 (England), WIMD 2025 (Wales), SIMD 2020v2 (Scotland), NIMDM 2017 (N. Ireland)",
+        "// All data under Open Government Licence v3.0",
+        "// Generated by scripts/convert-demographics.py",
+        "",
+        "export interface RegionDemographics {",
+        "  readonly region: string",
+        "  readonly avgIncomeScore: number",
+        "  readonly avgEmploymentScore: number",
+        "  readonly medianIncomeDecile: number",
+        "  readonly avgImdScore: number",
+        "  readonly lsoaCount: number",
+        "  readonly deprivationSource: string",
+        "  readonly microAreaLabel: string",
+        "}",
+        "",
+        "export const REGION_DEMOGRAPHICS: readonly RegionDemographics[] = [",
+    ]
+
+    for r in records:
+        assert 0 <= r["avgImdScore"] <= 100, f"avgImdScore out of range for {r['region']}: {r['avgImdScore']}"
+        assert 1 <= r["medianIncomeDecile"] <= 10, f"medianIncomeDecile out of range for {r['region']}: {r['medianIncomeDecile']}"
 
         lines.append(
-            f"  {{ region: '{region}', avgIncomeScore: {avg_income:.4f}, "
-            f"avgEmploymentScore: {avg_employment:.4f}, "
-            f"medianIncomeDecile: {median_decile}, "
-            f"avgImdScore: {avg_imd:.2f}, "
-            f"lsoaCount: {data['count']} }},"
+            f"  {{ region: '{r['region']}', "
+            f"avgIncomeScore: {r['avgIncomeScore']:.4f}, "
+            f"avgEmploymentScore: {r['avgEmploymentScore']:.4f}, "
+            f"medianIncomeDecile: {r['medianIncomeDecile']}, "
+            f"avgImdScore: {r['avgImdScore']:.2f}, "
+            f"lsoaCount: {r['lsoaCount']}, "
+            f"deprivationSource: '{r['deprivationSource']}', "
+            f"microAreaLabel: '{r['microAreaLabel']}' }},"
         )
 
     lines.append("] as const")
@@ -549,14 +591,33 @@ def generate_demographic_ts(region_data):
 
 
 def main():
-    print("Loading IMD 2025 data...")
-    region_data = load_imd_data()
+    print("Loading deprivation data from 4 nations...")
 
-    print(f"\nRegion aggregation:")
-    for region, data in sorted(region_data.items()):
-        print(f"  {region}: {data['count']} LSOAs")
+    print("\n[England] IMD 2025...")
+    england = load_imd_data()
+    print(f"  Total: {len(england)} LSOAs")
 
-    generate_demographic_ts(region_data)
+    print("\n[Wales] WIMD 2025...")
+    wales = load_wimd()
+
+    print("\n[Scotland] SIMD 2020v2...")
+    scotland = load_simd()
+
+    print("\n[Northern Ireland] NIMDM 2017...")
+    ni = load_nimdm()
+
+    all_areas = england + wales + scotland + ni
+    print(f"\nTotal micro-areas: {len(all_areas)}")
+
+    print("\nComputing UK-wide income deciles (Variant C)...")
+    uk_deciles = compute_uk_income_deciles(all_areas)
+    for region, decile in sorted(uk_deciles.items()):
+        print(f"  {region}: decile {decile}")
+
+    print("\nAggregating to 12 regions...")
+    records = aggregate_regions(all_areas, uk_deciles)
+
+    generate_demographic_ts(records)
     print("Done!")
 
 
