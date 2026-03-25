@@ -8,12 +8,12 @@ interface Feature {
 }
 
 const features: readonly Feature[] = [
-  { icon: Map, title: "Interactive Intelligence Map", desc: "Choropleth map color-coded by density, market share, or per-capita penetration. Click any region to drill into brand-by-brand breakdowns." },
-  { icon: TrendingUp, title: "10-Year Timeline", desc: "Scrub through 131 months of historical data. Watch brands expand, contract, and shift month by month — from January 2015 to today." },
-  { icon: Bot, title: "AI Agent Team", desc: "Four specialized agents — Market Monitor, Competitor Tracker, Expansion Scout, and Delivery Intel — continuously analyze data and surface actionable insights." },
-  { icon: Bell, title: "Smart Alerts", desc: "Get notified when competitors open or close locations in your key regions. Filter by brand, region, or event type." },
-  { icon: Radar, title: "Expansion Radar", desc: "5-tier scoring system rates every region from Cold to Hot for your brand, factoring in competition, population, and growth trends." },
-  { icon: Download, title: "Export & Brand Groups", desc: "Download region data as CSV. Create custom brand groups to track only the competitors that matter to your strategy." },
+  { icon: Map, title: "See where competitors win", desc: "Region-shaded map reveals density, market share, and per-capita penetration. Click any region for a brand-by-brand breakdown." },
+  { icon: TrendingUp, title: "Spot trends over 10 years", desc: "Scrub through 131 months of opening and closing data. Watch brands expand, contract, and shift — month by month since 2015." },
+  { icon: Bot, title: "7 AI agents working for you", desc: "Specialized agents analyze competitive data, transit footfall, road traffic, and demographics to surface insights no spreadsheet reveals." },
+  { icon: Bell, title: "Never miss a competitive move", desc: "Get notified when competitors open or close locations in your key regions. Filter by brand, region, or event type." },
+  { icon: Radar, title: "Know where to expand next", desc: "5-tier scoring system rates every region from Cold to Hot for your brand — factoring in competition, population, and growth trends." },
+  { icon: Download, title: "Export insights, track competitors", desc: "Download data as CSV. Create custom brand groups to track only the competitors that matter to your strategy." },
 ]
 
 const Features = () => (
@@ -21,7 +21,7 @@ const Features = () => (
     <div className="text-center mb-16">
       <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">Everything you need to outmaneuver the competition</h2>
       <p className="text-lg text-muted-foreground max-w-[600px] mx-auto">
-        From high-level market overview to AI-generated insights, Country Explorer gives you the full competitive picture.
+        From high-level market overview to AI-generated insights, Getplace gives you the full competitive picture.
       </p>
     </div>
     <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">

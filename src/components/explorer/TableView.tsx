@@ -54,7 +54,7 @@ const TableView = ({ onRegionSelect }: TableViewProps) => {
             <th className={thClass("name")} onClick={() => handleSort("name")}>Region</th>
             <th className={thClass("total")} onClick={() => handleSort("total")}>Total</th>
             <th className={thClass("pop")} onClick={() => handleSort("pop")}>Population</th>
-            <th className={thClass("density")} onClick={() => handleSort("density")}>Per 100k</th>
+            <th className={thClass("density")} onClick={() => handleSort("density")}>Per 100k people</th>
             {brands.map((b) => (
               <th key={b} className={thClass(b)} onClick={() => handleSort(b)}>{b}</th>
             ))}

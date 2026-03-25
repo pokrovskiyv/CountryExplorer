@@ -1,6 +1,8 @@
 import { useCountry } from "@/contexts/CountryContext";
 import BrandGroupManager from "@/components/explorer/BrandGroupManager";
+import LayerPanel from "@/components/explorer/LayerPanel";
 import type { BrandGroup } from "@/hooks/useBrandGroups";
+import type { LayerId, TrafficLayerOptions } from "@/hooks/map-layers/types";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
@@ -17,9 +19,13 @@ interface SidebarProps {
   onCreateBrandGroup: (name: string, brands: readonly string[]) => void;
   onDeleteBrandGroup: (id: string) => void;
   visibleIndices?: Record<string, ReadonlySet<number>>;
+  activeLayers: ReadonlySet<LayerId>;
+  onToggleLayer: (id: LayerId) => void;
+  trafficOptions?: TrafficLayerOptions;
+  onTrafficOptionsChange?: (opts: TrafficLayerOptions) => void;
 }
 
-const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup, visibleIndices }: SidebarProps) => {
+const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup, visibleIndices, activeLayers, onToggleLayer, trafficOptions, onTrafficOptionsChange }: SidebarProps) => {
   const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION } = useCountry();
   // Compute totals — use visibleIndices when available, fall back to static REGION_COUNTS
   const totals: Record<string, number> = {};
@@ -78,11 +84,23 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
         ))}
       </div>
 
-      {/* Metric selector */}
+      {/* Data Layers */}
+      <LayerPanel
+        activeLayers={activeLayers}
+        onToggleLayer={onToggleLayer}
+        trafficOptions={trafficOptions}
+        onTrafficOptionsChange={onTrafficOptionsChange}
+      />
+
+      {/* Map Style — merged metric + display */}
       <div className="p-4 border-b border-border">
-        <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Color by</h3>
-        <div className="flex gap-1 flex-wrap">
-          {([["total", "Total locations"], ["density", "Per 100k pop."], ["share", "Brand share %"]] as const).map(([m, label]) => (
+        <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Map Style</h3>
+
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
+          Shade regions by
+        </div>
+        <div className="flex gap-1 flex-wrap mb-3">
+          {([["total", "Total locations"], ["density", "Per 100k people"], ["share", "Market share"]] as const).map(([m, label]) => (
             <button
               key={m}
               onClick={() => onMetricChange(m)}
@@ -96,11 +114,10 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
             </button>
           ))}
         </div>
-      </div>
 
-      {/* Display mode */}
-      <div className="p-4 border-b border-border">
-        <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Display</h3>
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
+          Display mode
+        </div>
         <div className="flex gap-1 flex-wrap">
           {([["choropleth", "Regions"], ["points", "Points"], ["both", "Both"], ["heatmap", "Heatmap"]] as const).map(([d, label]) => (
             <button
@@ -126,7 +143,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
             { label: "Locations", value: totalLocations.toLocaleString() },
             { label: "Brands", value: selectedBrands.size },
             { label: "Regions", value: Object.keys(REGION_COUNTS).length },
-            { label: "Per 100k", value: ((totalLocations / totalPop) * 100).toFixed(1) },
+            { label: "Per 100k people", value: ((totalLocations / totalPop) * 100).toFixed(1) },
           ].map((s) => (
             <div key={s.label} className="bg-surface-1 rounded-lg p-3">
               <div className="text-[11px] text-muted-foreground uppercase tracking-wide">{s.label}</div>

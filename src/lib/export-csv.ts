@@ -9,7 +9,7 @@ export function exportTableAsCSV(
   const BOM = "\uFEFF";
   const sep = ",";
 
-  const headers = ["Region", "Total", "Population", "Per 100k", ...brandNames];
+  const headers = ["Region", "Total", "Population", "Per 100k people", ...brandNames];
   const rows = Object.entries(regionCounts).map(([name, data]) => {
     const pop = population[name] || 0;
     const total = data.total || 0;

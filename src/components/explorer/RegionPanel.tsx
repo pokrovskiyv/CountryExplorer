@@ -52,7 +52,7 @@ const RegionPanel = ({ region, onClose, selectedBrands }: RegionPanelProps) => {
             <div className="text-xl font-bold text-foreground tabular-nums">{total.toLocaleString()}</div>
           </div>
           <div className="bg-surface-1 rounded-lg p-3">
-            <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Per 100k pop.</div>
+            <div className="text-[11px] text-muted-foreground uppercase tracking-wide">Per 100k people</div>
             <div className="text-xl font-bold text-foreground tabular-nums">{density}</div>
             <div className="text-[11px] text-muted-foreground mt-0.5">Pop: {(pop * 1000).toLocaleString()}</div>
           </div>

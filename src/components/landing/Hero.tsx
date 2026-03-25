@@ -12,10 +12,10 @@ const Hero = () => {
         131 months of real footprint data
       </span>
       <h1 className="text-4xl sm:text-5xl lg:text-[56px] font-extrabold leading-[1.1] max-w-[800px] mx-auto mb-5 bg-gradient-to-br from-foreground to-muted-foreground bg-clip-text text-transparent">
-        The competitive map your restaurant chain has been missing
+        Find your next 50 locations before competitors do
       </h1>
       <p className="text-lg sm:text-xl text-muted-foreground max-w-[600px] mx-auto mb-10 leading-relaxed">
-        6,820+ locations across every UK region. 10 years of real footprint history. An interactive map that shows where competitors are winning — and where you should be next. Four intelligent agents surface the patterns automatically.
+        Getplace analyzes 6,820+ QSR locations, rail footfall, road traffic, and demographics across every UK region. Seven AI agents surface expansion opportunities — so you know exactly where to open next.
       </p>
       <div className="flex gap-4 justify-center flex-wrap">
         <button
@@ -26,7 +26,7 @@ const Hero = () => {
           Get Early Access
         </button>
         <Link
-          to="/explorer"
+          to="/explorer#opportunities"
           className="bg-surface-1 hover:bg-surface-2 text-muted-foreground px-8 py-3.5 rounded-xl text-base font-medium border border-border transition-all"
         >
           See the Platform

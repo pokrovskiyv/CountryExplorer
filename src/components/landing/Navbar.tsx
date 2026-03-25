@@ -20,7 +20,7 @@ const Navbar = () => {
           Getplace
         </Link>
         <div className="flex items-center gap-3">
-          <Link to="/explorer" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+          <Link to="/explorer#opportunities" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
             Try Explorer →
           </Link>
           <button
