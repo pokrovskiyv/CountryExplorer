@@ -81,11 +81,71 @@ Country Explorer изначально позиционировался как **
 
 **Почему эти источники:** Индексы депривации — стандартный инструмент для оценки социально-экономического профиля территорий UK. Income deprivation rate позволяет понять, соответствует ли аудитория района целевой аудитории бренда (premium vs value).
 
-**Нормализация (Combo A+C):**
-- **Вариант C (для scoring):** Income deprivation rate из всех 4 индексов объединяется в единое UK-wide распределение → UK-wide перцентили → децили. `medianIncomeDecile` сопоставим между нациями.
-- **Вариант A (для карты):** Composite deprivation score нормализуется в 0-100 внутри каждой нации (для SIMD и NIMDM — из рангов). Не сопоставим между нациями, но достаточен для визуализации.
+**Как используется:** Данные на уровне микрорайонов агрегируются до 12 UK-регионов (через маппинг Local Authority / Data Zone / SOA → ITL1 Region). Для каждого региона считается средний income score, медианный UK-normalized income decile, и средний composite deprivation score. Подробная методология нормализации — в секции ниже.
 
-**Как используется:** Данные на уровне микрорайонов агрегируются до 12 UK-регионов (через маппинг Local Authority / Data Zone / SOA → ITL1 Region). Для каждого региона считается средний income score, медианный UK-normalized income decile, и средний composite deprivation score.
+#### Методология нормализации (Combo A+C)
+
+##### Проблема: четыре несопоставимых индекса
+
+Каждая нация UK публикует собственный индекс депривации. Они **методологически несовместимы** — все четыре правительства прямо заявляют, что прямое сравнение невозможно:
+
+| Аспект | England (IMD) | Wales (WIMD) | Scotland (SIMD) | N. Ireland (NIMDM) |
+|--------|---------------|--------------|-----------------|-------------------|
+| Доменов | 7 | 8 | 7 | 7 |
+| Вес Income | 22.5% | 22% → 20% (2025) | 28% | 25% |
+| Вес Employment | 22.5% | 22% → 20% (2025) | 28% | 25% |
+| Вес Crime | 9.3% | 5% | 5% | 5% |
+| Geography unit | LSOA (~1,500 чел.) | LSOA (~1,600 чел.) | Data Zone (~750 чел.) | SOA (~2,000 чел.) |
+| Базовая линия дохода | 60% медианы England | 60% медианы Wales | Различные индикаторы | 60% медианы NI |
+| Публикует | Score + rank + decile | Score (0-100) | Rank only | Rank only |
+
+Ключевые различия: разные домены и веса, разные индикаторы внутри доменов, разные geography units, разные poverty baselines. Composite score из одного индекса **нельзя** сравнивать с composite score из другого.
+
+##### Решение: две параллельные нормализации
+
+Мы используем подход "Combo A+C" — две стратегии нормализации для двух разных потребителей данных.
+
+**Вариант C — UK-wide income decile (для scoring-движка)**
+
+Единственная метрика, реально сопоставимая между нациями — **income deprivation rate** (доля населения в бедности). Все 4 индекса её содержат, и она измеряет по сути одно и то же: процент людей с доходом ниже порога.
+
+Алгоритм:
+1. Собираем income deprivation rate из всех ~43,500 микрорайонов UK
+2. Сортируем по income rate (ascending — от наименее бедных к наиболее бедным)
+3. Каждому микрорайону присваиваем перцентиль: `i / (n - 1)`
+4. Конвертируем в децили: `decile = 10 - floor(percentile × 10)`, где 1 = самые бедные 10%, 10 = самые богатые 10%
+5. Агрегируем до региона: медианный децил всех микрорайонов в регионе
+
+Результат: `medianIncomeDecile` — единственное cross-nation comparable поле. Используется в brand-income affinity: premium бренды (Nando's) → decile ≥ 6, value бренды (McDonald's, Subway) → decile ≤ 5.
+
+**Вариант A — nation-normalized composite score (для карты)**
+
+Для визуального слоя на карте используем composite deprivation из каждого национального индекса, нормализованный в единую шкалу 0-100 (higher = more deprived):
+
+- **IMD (England):** score используется напрямую (уже в масштабе 0-~90)
+- **WIMD (Wales):** score используется напрямую (шкала 0-100, where 100 = most deprived)
+- **SIMD (Scotland):** из рангов: `(6976 - rank) / 6976 × 100` (rank 1 = most deprived → score ≈ 100)
+- **NIMDM (N. Ireland):** из рангов: `(890 - rank) / 890 × 100` (аналогично)
+
+Результат: `avgImdScore` — НЕ сопоставим между нациями (decile 5 в Wales ≠ decile 5 в England по этому полю). Используется **только** для раскраски карты внутри каждого региона. Функция `imdColor` вычисляет min/max динамически из всего массива REGION_DEMOGRAPHICS.
+
+##### Правила использования полей
+
+| Поле | Cross-nation comparable | Где используется |
+|------|------------------------|-----------------|
+| `medianIncomeDecile` | **Да** — UK-wide normalized | Scoring: brand-income affinity |
+| `avgImdScore` | Нет — nation-specific composite | Карта: цвет региона |
+| `avgIncomeScore` | Нет — разные poverty baselines | Tooltip: information only |
+| `avgEmploymentScore` | Нет — разные методологии | Tooltip: information only |
+| `deprivationSource` | N/A | Tooltip: "IMD 2025" / "WIMD 2025" / etc. |
+| `microAreaLabel` | N/A | Tooltip: "LSOAs" / "Data Zones" / "SOAs" |
+
+##### Ограничения нормализации
+
+1. **Income rate — не идентичная метрика.** England/NI используют "60% медианы" страны, Wales — аналогично но с другой медианой, Scotland — набор индикаторов вместо одного порога. На практике разница невелика для агрегата на уровне регионов.
+2. **NIMDM 2017 устарел.** Данные 2015/16 — 10-летней давности. NI income decile может не отражать текущую реальность.
+3. **Composite scores не выровнены.** avgImdScore 28.45 (North East, IMD) и 49.94 (N. Ireland, NIMDM) нельзя сравнивать — это разные шкалы. На карте это выглядит как "NI более депривирован чем NE", что может быть неточно.
+4. **Потеря "multiple" из MDI.** Для scoring мы используем только income — теряем health, education, crime и другие домены. Для QSR site selection это приемлемо: income — главный предиктор brand affinity.
 
 ### 5. Census 2021 Workplace Population (WP001)
 
@@ -178,7 +238,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 |------|--------|---------|-----------|
 | `src/data/station-data.ts` | ~200 KB | 2,361 | `StationRecord` — name, lat, lon, region, annualEntries, qsrCount800m, brandCounts800m, footfallRatio, busStopCount800m, workplacePop1500m, estWorkerSalary |
 | `src/data/traffic-data.ts` | 774 KB | 5,000 | `TrafficPoint` — lat, lon, region, roadName, aadf, driveThruCount1500m, qsrCount1500m |
-| `src/data/demographic-data.ts` | 1.8 KB | 9 | `RegionDemographics` — region, avgIncomeScore, avgEmploymentScore, medianIncomeDecile |
+| `src/data/demographic-data.ts` | 2.5 KB | 12 | `RegionDemographics` — region, avgIncomeScore, avgEmploymentScore, medianIncomeDecile, avgImdScore, lsoaCount, deprivationSource, microAreaLabel |
 
 ### Вспомогательный модуль
 
@@ -271,7 +331,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 |--------|-----|--------------------------|------------------|
 | **Footfall** | 25% | Корреляция foot traffic с продажами QSR = **0.93** (Unacast). Coldwell Banker называет foot traffic **фактором #1** в QSR site selection. Kalibrate (ведущий вендор location intelligence) ставит traffic counts в категорию "very important". Strength рассчитывается по **log-шкале**: `(log(entries) - log(1M)) / (log(max) - log(1M))`, что лучше передаёт разницу между станциями при крайне неравномерном распределении (медиана 290K, max 98M). | **Сильное** ✓ |
 | **Brand Gap** | 25% | Whitespace analysis — стандартная методология индустрии. Penn Station нашёл "1,000+ whitespace opportunities" этим методом (QSR Magazine). Однако исследование Choi et al. (2019) на 30,000 ресторанах показало, что QSR *выигрывают от рассредоточения* — наличие конкурентов валидирует спрос, но прямая конкуренция вредит. | **Умеренное** ⚠ |
-| **Demo Fit** | 15% | 40% потребителей с доходом <$50K **сократили** посещения QSR (Restroworks). При этом 28% тех, кто ходит 15+ раз/мес, имеют доход >$150K (NRN). Income decile доказанно влияет на тип QSR бренда: premium vs value. **Ограничение:** IMD измеряет доход *жителей* района, а не посетителей. В деловых кварталах (50K+ workers в 1.5km) lunch crowd приезжает отовсюду — residential income не отражает реальную аудиторию. Для таких станций сигнал переводится в neutral (0.5). | **Умеренное** ⚠ |
+| **Demo Fit** | 15% | 40% потребителей с доходом <$50K **сократили** посещения QSR (Restroworks). При этом 28% тех, кто ходит 15+ раз/мес, имеют доход >$150K (NRN). Income decile доказанно влияет на тип QSR бренда: premium vs value. **Ограничение:** Deprivation indices измеряют доход *жителей* района, а не посетителей. В деловых кварталах (50K+ workers в 1.5km) lunch crowd приезжает отовсюду — residential income не отражает реальную аудиторию. Для таких станций сигнал переводится в neutral (0.5). Income decile нормализован UK-wide (Combo A+C Variant C) — сопоставим между нациями. | **Умеренное** ⚠ |
 | **Low Density** | 15% | 60% новых ресторанов закрываются в первый год, saturation — один из факторов (NRA). ICSC: "успех зависит от demand drivers, а не от абсолютной плотности". Undersaturation *относительно спроса* — хороший сигнал. | **Умеренное** ✓ |
 | **Pedestrian** | 8% | Рестораны **более чувствительны к walkability**, чем другие бизнесы (ScienceDirect 2022). Пешеходы и велосипедисты тратят на **40% больше в месяц**, чем автомобилисты (UW-Extension). Улучшение пешеходной среды увеличивает продажи на **30%** (Active Living Research). | **Сильное** ✓ |
 | **Road Traffic** | 7% | В US drive-thru = **50-70% revenue** QSR (QSR Magazine 2025). Но в UK drive-thru — значительно меньшая доля. 7% адекватно для UK-focused модели. При расширении на US нужно повысить до 15-25%. | **Контекстно** ⚠ |
@@ -296,7 +356,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 
 **2. Density signal — inverted behavior.** Сигнал fires когда QSR рядом мало. Но топ-10 станций (Liverpool Street: 98M pax, 11 QSR) имеют высокую плотность — сигнал для них НЕ fires. Высокая плотность = validated market. Сигнал правильно работает для underserved corridors, но наказывает proven markets.
 
-**3. Geographic bias.** 75% top opportunities — London. Demographic и Workforce сигналы покрывают только England/Wales. Нет region-relative normalization: Liverpool Street (99-й перцентиль в London) и Manchester Piccadilly (99-й перцентиль в North West) сравниваются напрямую, хотя масштабы разные.
+**3. Geographic bias.** 75% top opportunities — London. Workforce сигнал покрывает только England/Wales (Census 2021 WP001). Demographic сигнал теперь покрывает все 12 регионов UK (IMD + WIMD + SIMD + NIMDM), но income deciles нормализованы UK-wide — нет region-relative normalization: Liverpool Street (99-й перцентиль в London) и Manchester Piccadilly (99-й перцентиль в North West) сравниваются напрямую, хотя масштабы разные.
 
 **4. Нет outcome validation.** Веса основаны на research + expert judgment, не на regression "рекомендация → открытие → успех". Для regression нужны данные о реальных открытиях — это следующий этап.
 
@@ -308,6 +368,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 |------|-----------|---------|---------|
 | 2026-03-25 | Footfall: линейная шкала с cap 20M → log-шкала `(log(entries) - log(1M)) / (log(max) - log(1M))` | 22 станции >20M получали одинаковый score=100, теряя 5x разницу в трафике. Распределение крайне неравномерное (медиана 290K, max 98M) — log лучше передаёт magnitude | Топ-станции получили дифференцированные scores: Liverpool Street 100, Victoria 87, Bond Street 82, Clapham Junction 70. Средние станции (~8M) незначительно выросли (+5) |
 | 2026-03-25 | Demo fit: SIC-weighted worker salary для деловых кварталов (50K+ workers) вместо neutral 0.5 | Residential income decile не отражает lunch crowd в business districts. Добавлены 2 новых источника: BRES (employment by SIC, NOMIS) + ASHE (median pay by SIC, ONS). Pipeline: station → nearest LA → BRES SIC profile × ASHE pay → estimated salary | 62 бизнес-станции получают data-driven demo fit вместо neutral. Liverpool Street (finance-heavy, £35K) = strong fit для Nando's. Hospitality-heavy районы = better fit для KFC. Новое поле `estWorkerSalary` в station-data.ts (2,318 из 2,361 станций) |
+| 2026-03-25 | Demo fit: UK-wide deprivation — 4 национальных индекса (IMD + WIMD + SIMD + NIMDM) вместо England-only IMD | Wales, Scotland, N.Ireland были белыми на карте, demo fit = `fired: false` для всех станций этих наций. Combo A+C нормализация: income rate → UK-wide percentile → decile (Variant C для scoring), nation-specific composite → 0-100 (Variant A для карты) | 12 регионов вместо 9, 43,535 микрорайонов. Wales decile=5, Scotland decile=8, NI decile=7. Станции в Scotland/Wales/NI теперь получают demographic signal. Карта заполнена без пробелов |
 
 #### Как мы это позиционируем
 
@@ -371,7 +432,9 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 - Toggle в sidebar: секция "Road Traffic"
 
 **3. Demographic overlays** (Income level / Deprivation index)
-- Перекрашивают region polygons по income decile или IMD score
+- Перекрашивают все 12 UK region polygons по income decile или composite deprivation score
+- `imdColor` вычисляет min/max динамически из `REGION_DEMOGRAPHICS` (адаптируется к данным)
+- Tooltip показывает source per nation: "1,917 LSOAs (WIMD 2025)", "6,973 Data Zones (SIMD 2020)"
 - Hover сохраняет демографический цвет (через `demoActiveStylesRef`)
 - Взаимоисключающие — включение одного выключает другой
 - Toggle в sidebar: секция "Demographics"
