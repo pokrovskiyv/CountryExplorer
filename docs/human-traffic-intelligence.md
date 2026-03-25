@@ -1,5 +1,28 @@
 # Human Traffic Intelligence — Agent Team
 
+## Содержание
+
+- [Зачем это сделано](#зачем-это-сделано)
+- [Источники данных](#источники-данных)
+  - [1. ORR Station Usage](#1-orr-station-usage-пассажирский-трафик-станций)
+  - [2. NaPTAN](#2-naptan-координаты-транспортных-объектов--bus-stop-density)
+  - [3. DfT Traffic Counts / AADF](#3-dft-traffic-counts--aadf-дорожный-трафик)
+  - [4. UK Deprivation Indices](#4-uk-deprivation-indices-демография)
+  - [5. Census 2021 Workplace Population](#5-census-2021-workplace-population-wp001)
+  - [6. BRES](#6-bres--business-register-and-employment-survey-занятость-по-отраслям)
+  - [7. ASHE](#7-ashe--annual-survey-of-hours-and-earnings-зарплаты-по-отраслям)
+- [Методология нормализации (UK-Wide Income Decile и Nation-Normalized Composite)](#методология-нормализации)
+- [Архитектура решения](#архитектура-решения)
+- [Три новых агента](#три-новых-агента)
+- [Интеграция в существующую систему](#интеграция-в-существующую-систему)
+- [Сценарии использования](#сценарии-использования)
+- [Как пользоваться](#как-пользоваться)
+- [Известные ограничения](#известные-ограничения)
+- [Структура файлов](#структура-файлов)
+- [Ключевая мысль](#ключевая-мысль)
+
+---
+
 ## Зачем это сделано
 
 Country Explorer изначально позиционировался как **инструмент** — карта, скоринг, агенты. Аналитик ресторанной сети мог сам анализировать данные и принимать решения.
@@ -81,71 +104,7 @@ Country Explorer изначально позиционировался как **
 
 **Почему эти источники:** Индексы депривации — стандартный инструмент для оценки социально-экономического профиля территорий UK. Income deprivation rate позволяет понять, соответствует ли аудитория района целевой аудитории бренда (premium vs value).
 
-**Как используется:** Данные на уровне микрорайонов агрегируются до 12 UK-регионов (через маппинг Local Authority / Data Zone / SOA → ITL1 Region). Для каждого региона считается средний income score, медианный UK-normalized income decile, и средний composite deprivation score. Подробная методология нормализации — в секции ниже.
-
-#### Методология нормализации (Combo A+C)
-
-##### Проблема: четыре несопоставимых индекса
-
-Каждая нация UK публикует собственный индекс депривации. Они **методологически несовместимы** — все четыре правительства прямо заявляют, что прямое сравнение невозможно:
-
-| Аспект | England (IMD) | Wales (WIMD) | Scotland (SIMD) | N. Ireland (NIMDM) |
-|--------|---------------|--------------|-----------------|-------------------|
-| Доменов | 7 | 8 | 7 | 7 |
-| Вес Income | 22.5% | 22% → 20% (2025) | 28% | 25% |
-| Вес Employment | 22.5% | 22% → 20% (2025) | 28% | 25% |
-| Вес Crime | 9.3% | 5% | 5% | 5% |
-| Geography unit | LSOA (~1,500 чел.) | LSOA (~1,600 чел.) | Data Zone (~750 чел.) | SOA (~2,000 чел.) |
-| Базовая линия дохода | 60% медианы England | 60% медианы Wales | Различные индикаторы | 60% медианы NI |
-| Публикует | Score + rank + decile | Score (0-100) | Rank only | Rank only |
-
-Ключевые различия: разные домены и веса, разные индикаторы внутри доменов, разные geography units, разные poverty baselines. Composite score из одного индекса **нельзя** сравнивать с composite score из другого.
-
-##### Решение: две параллельные нормализации
-
-Мы используем подход "Combo A+C" — две стратегии нормализации для двух разных потребителей данных.
-
-**Вариант C — UK-wide income decile (для scoring-движка)**
-
-Единственная метрика, реально сопоставимая между нациями — **income deprivation rate** (доля населения в бедности). Все 4 индекса её содержат, и она измеряет по сути одно и то же: процент людей с доходом ниже порога.
-
-Алгоритм:
-1. Собираем income deprivation rate из всех ~43,500 микрорайонов UK
-2. Сортируем по income rate (ascending — от наименее бедных к наиболее бедным)
-3. Каждому микрорайону присваиваем перцентиль: `i / (n - 1)`
-4. Конвертируем в децили: `decile = 10 - floor(percentile × 10)`, где 1 = самые бедные 10%, 10 = самые богатые 10%
-5. Агрегируем до региона: медианный децил всех микрорайонов в регионе
-
-Результат: `medianIncomeDecile` — единственное cross-nation comparable поле. Используется в brand-income affinity: premium бренды (Nando's) → decile ≥ 6, value бренды (McDonald's, Subway) → decile ≤ 5.
-
-**Вариант A — nation-normalized composite score (для карты)**
-
-Для визуального слоя на карте используем composite deprivation из каждого национального индекса, нормализованный в единую шкалу 0-100 (higher = more deprived):
-
-- **IMD (England):** score используется напрямую (уже в масштабе 0-~90)
-- **WIMD (Wales):** score используется напрямую (шкала 0-100, where 100 = most deprived)
-- **SIMD (Scotland):** из рангов: `(6976 - rank) / 6976 × 100` (rank 1 = most deprived → score ≈ 100)
-- **NIMDM (N. Ireland):** из рангов: `(890 - rank) / 890 × 100` (аналогично)
-
-Результат: `avgImdScore` — НЕ сопоставим между нациями (decile 5 в Wales ≠ decile 5 в England по этому полю). Используется **только** для раскраски карты внутри каждого региона. Функция `imdColor` вычисляет min/max динамически из всего массива REGION_DEMOGRAPHICS.
-
-##### Правила использования полей
-
-| Поле | Cross-nation comparable | Где используется |
-|------|------------------------|-----------------|
-| `medianIncomeDecile` | **Да** — UK-wide normalized | Scoring: brand-income affinity |
-| `avgImdScore` | Нет — nation-specific composite | Карта: цвет региона |
-| `avgIncomeScore` | Нет — разные poverty baselines | Tooltip: information only |
-| `avgEmploymentScore` | Нет — разные методологии | Tooltip: information only |
-| `deprivationSource` | N/A | Tooltip: "IMD 2025" / "WIMD 2025" / etc. |
-| `microAreaLabel` | N/A | Tooltip: "LSOAs" / "Data Zones" / "SOAs" |
-
-##### Ограничения нормализации
-
-1. **Income rate — не идентичная метрика.** England/NI используют "60% медианы" страны, Wales — аналогично но с другой медианой, Scotland — набор индикаторов вместо одного порога. На практике разница невелика для агрегата на уровне регионов.
-2. **NIMDM 2017 устарел.** Данные 2015/16 — 10-летней давности. NI income decile может не отражать текущую реальность.
-3. **Composite scores не выровнены.** avgImdScore 28.45 (North East, IMD) и 49.94 (N. Ireland, NIMDM) нельзя сравнивать — это разные шкалы. На карте это выглядит как "NI более депривирован чем NE", что может быть неточно.
-4. **Потеря "multiple" из MDI.** Для scoring мы используем только income — теряем health, education, crime и другие домены. Для QSR site selection это приемлемо: income — главный предиктор brand affinity.
+**Как используется:** Данные на уровне микрорайонов агрегируются до 12 UK-регионов (через маппинг Local Authority / Data Zone / SOA → ITL1 Region). Для каждого региона считается средний income score, медианный UK-normalized income decile, и средний composite deprivation score. Подробная методология нормализации — в секции [ниже](#методология-нормализации).
 
 ### 5. Census 2021 Workplace Population (WP001)
 
@@ -203,6 +162,72 @@ Country Explorer изначально позиционировался как **
 **Как используется (в связке с BRES):** `estimated salary = Σ(employees_in_SIC × median_pay_SIC) / total_employees`. Pipeline: станция → ближайший LA centroid → BRES SIC-профиль → ASHE-взвешенная зарплата → поле `estWorkerSalary` в station-data.ts. Используется в сигнале Demo Fit для деловых кварталов (50K+ workers) вместо residential income decile.
 
 **Ограничение:** Национальные медианы (не региональные). Finance worker в London зарабатывает больше чем в Leeds, но оба получают £38K в расчёте. Региональная разбивка ASHE по SIC недоступна через NOMIS API — только через ONS Query Builder вручную. Это ограничивает диапазон: £23K – £35K вместо реальных ~£18K – £55K.
+
+---
+
+## Методология нормализации
+
+Два подхода к нормализации четырёх несопоставимых национальных индексов депривации (IMD, WIMD, SIMD, NIMDM) в единую шкалу: **UK-Wide Income Decile** (для scoring-движка) и **Nation-Normalized Composite** (для карты). Эти два варианта ранее назывались "Combo A+C" — Variant C и Variant A соответственно.
+
+### Проблема: четыре несопоставимых индекса
+
+Каждая нация UK публикует собственный индекс депривации. Они **методологически несовместимы** — все четыре правительства прямо заявляют, что прямое сравнение невозможно:
+
+| Аспект | England (IMD) | Wales (WIMD) | Scotland (SIMD) | N. Ireland (NIMDM) |
+|--------|---------------|--------------|-----------------|-------------------|
+| Доменов | 7 | 8 | 7 | 7 |
+| Вес Income | 22.5% | 22% → 20% (2025) | 28% | 25% |
+| Вес Employment | 22.5% | 22% → 20% (2025) | 28% | 25% |
+| Вес Crime | 9.3% | 5% | 5% | 5% |
+| Geography unit | LSOA (~1,500 чел.) | LSOA (~1,600 чел.) | Data Zone (~750 чел.) | SOA (~2,000 чел.) |
+| Базовая линия дохода | 60% медианы England | 60% медианы Wales | Различные индикаторы | 60% медианы NI |
+| Публикует | Score + rank + decile | Score (0-100) | Rank only | Rank only |
+
+Ключевые различия: разные домены и веса, разные индикаторы внутри доменов, разные geography units, разные poverty baselines. Composite score из одного индекса **нельзя** сравнивать с composite score из другого.
+
+### Решение: две параллельные нормализации
+
+#### UK-Wide Income Decile (для scoring-движка)
+
+Единственная метрика, реально сопоставимая между нациями — **income deprivation rate** (доля населения в бедности). Все 4 индекса её содержат, и она измеряет по сути одно и то же: процент людей с доходом ниже порога.
+
+Алгоритм:
+1. Собираем income deprivation rate из всех ~43,500 микрорайонов UK
+2. Сортируем по income rate (ascending — от наименее бедных к наиболее бедным)
+3. Каждому микрорайону присваиваем перцентиль: `i / (n - 1)`
+4. Конвертируем в децили: `decile = 10 - floor(percentile × 10)`, где 1 = самые бедные 10%, 10 = самые богатые 10%
+5. Агрегируем до региона: медианный децил всех микрорайонов в регионе
+
+Результат: `medianIncomeDecile` — единственное cross-nation comparable поле. Используется в brand-income affinity: premium бренды (Nando's) → decile ≥ 6, value бренды (Subway, KFC) → decile ≤ 5.
+
+#### Nation-Normalized Composite (для карты)
+
+Для визуального слоя на карте используем composite deprivation из каждого национального индекса, нормализованный в единую шкалу 0-100 (higher = more deprived):
+
+- **IMD (England):** score используется напрямую (уже в масштабе 0-~90)
+- **WIMD (Wales):** score используется напрямую (шкала 0-100, where 100 = most deprived)
+- **SIMD (Scotland):** из рангов: `(6976 - rank) / 6976 × 100` (rank 1 = most deprived → score ≈ 100)
+- **NIMDM (N. Ireland):** из рангов: `(890 - rank) / 890 × 100` (аналогично)
+
+Результат: `avgImdScore` — НЕ сопоставим между нациями (decile 5 в Wales ≠ decile 5 в England по этому полю). Используется **только** для раскраски карты внутри каждого региона. Функция `imdColor` вычисляет min/max динамически из всего массива REGION_DEMOGRAPHICS.
+
+### Правила использования полей
+
+| Поле | Cross-nation comparable | Где используется |
+|------|------------------------|-----------------|
+| `medianIncomeDecile` | **Да** — UK-wide normalized | Scoring: brand-income affinity |
+| `avgImdScore` | Нет — nation-specific composite | Карта: цвет региона |
+| `avgIncomeScore` | Нет — разные poverty baselines | Tooltip: information only |
+| `avgEmploymentScore` | Нет — разные методологии | Tooltip: information only |
+| `deprivationSource` | N/A | Tooltip: "IMD 2025" / "WIMD 2025" / etc. |
+| `microAreaLabel` | N/A | Tooltip: "LSOAs" / "Data Zones" / "SOAs" |
+
+### Ограничения нормализации
+
+1. **Income rate — не идентичная метрика.** England/NI используют "60% медианы" страны, Wales — аналогично но с другой медианой, Scotland — набор индикаторов вместо одного порога. На практике разница невелика для агрегата на уровне регионов.
+2. **NIMDM 2017 устарел.** Данные 2015/16 — 10-летней давности. NI income decile может не отражать текущую реальность.
+3. **Composite scores не выровнены.** avgImdScore 28.45 (North East, IMD) и 49.94 (N. Ireland, NIMDM) нельзя сравнивать — это разные шкалы. На карте это выглядит как "NI более депривирован чем NE", что может быть неточно.
+4. **Потеря "multiple" из MDI.** Для scoring мы используем только income — теряем health, education, crime и другие домены. Для QSR site selection это приемлемо: income — главный предиктор brand affinity.
 
 ---
 
@@ -283,7 +308,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 
 | Тип инсайта | Приоритет | Когда срабатывает | Пример |
 |-------------|-----------|-------------------|--------|
-| `affluence-brand-mismatch` | 2 | Premium-бренд на 20%+ ниже нац. среднего в high-income регионе, или value-бренд на 20%+ ниже в low-income | "Nando's (premium brand) has 37% fewer locations per capita in East Midlands — despite income decile 6" |
+| `affluence-brand-mismatch` | 2 | Premium-бренд на 20%+ ниже нац. среднего в high-income регионе, или value-бренд на 20%+ ниже в low-income | "Nando's (premium brand) has 37% fewer locations per capita in East Midlands — despite income decile 5" |
 | `demographic-expansion-signal` | 3 | Регион с QSR плотностью <85% от среднего при income decile ≥4 | "South East: QSR density 15% below national average despite income decile 7" |
 
 **Матрица бренд-доход (эвристика):**
@@ -299,7 +324,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 
 ### 3. Opportunity Engine (rose)
 
-**Файл:** `src/lib/opportunity-engine-agent.ts` (~350 строк)
+**Файлы:** `src/lib/opportunity-engine-agent.ts` (генерация инсайтов) + `src/lib/opportunity-scoring.ts` (фактическая логика scoring: сигналы, веса, composite score)
 
 **Стратегический вопрос:** ГДЕ открываться? Где совпадают несколько сигналов?
 
@@ -311,13 +336,15 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 |---|--------|-----|----------|-----------|
 | 1 | Footfall | 25% | Станция >1M пассажиров/год | 0–1.0 (log-шкала от 1M до max) |
 | 2 | Brand gap | 25% | У бренда 0 точек ~13 min walk, но конкуренты есть | 0.8 |
-| 3 | Demo fit | 15% | Income decile региона соответствует позиционированию бренда. В деловых кварталах (50K+ workers) — neutral (0.5), т.к. residential income не отражает lunch crowd | 0.5–0.9 |
+| 3 | Demo fit | 15% | Income decile региона соответствует позиционированию бренда. В деловых кварталах (50K+ workers) вместо residential income decile используется SIC-weighted worker salary (BRES × ASHE), что даёт data-driven оценку lunch crowd | 0.5–0.9 |
 | 4 | Low density | 15% | QSR рядом со станцией <50-75% от среднего | 0.5–0.8 |
 | 5 | Pedestrian | 8% | 30+ автобусных остановок в 800м (оживлённый район) | 0.6–0.9 |
 | 6 | Road traffic | 7% | 50K+ авто/день на ближайшей дороге, <2 drive-thru | 0.6–0.9 |
 | 7 | Workforce | 5% | 20K+ workers в 1.5km — деловой район (Census 2021) | 0.6–0.9 |
 
-**Composite Score** = sum(weight × strength) / totalWeight × 100 × confidenceMultiplier
+**Composite Score** = sum(weight × strength) / totalFiredWeight × 100 × confidenceMultiplier
+
+Только сработавшие (fired) сигналы участвуют в расчёте: `totalFiredWeight` = сумма весов только тех сигналов, которые сработали. Минимум 2 сигнала должны сработать для появления opportunity в результатах.
 
 ### Обоснование весов (Evidence Base)
 
@@ -459,7 +486,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 1. Открыть Explorer → default view Insights → видит топ-станции с opportunity scores
 2. Видит: *"Nandos at London Liverpool Street: 2 signals (high-footfall + high-pedestrian), score 95/100. 98M passengers/year, 11 QSR ~13 min walk"*
 3. Переключается на Map → включает слой "Station analysis" → зумит к Liverpool Street → кликает на маркер
-4. Popup показывает: opportunity score 95, 98M пассажиров, 11 QSR рядом, 234 bus stops (high pedestrian area), 7-signal breakdown, Nandos отсутствует но McDonald's, KFC и Subway есть
+4. Popup показывает: opportunity score 95, 98M пассажиров, 11 QSR рядом, 112 bus stops (high pedestrian area), 7-signal breakdown, Nandos отсутствует но McDonald's, KFC и Subway есть
 5. **Вывод:** Спрос доказан (конкуренты уже стоят), трафик огромный, район оживлённый — но Nandos нет. Это приоритетная локация.
 
 **Ценность:** Expansion Manager видит только свои точки. Getplace показывает ему данные всех конкурентов + внешний трафик + пешеходную активность, и сам подсвечивает лучшие возможности.
@@ -471,11 +498,11 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 **Задача:** Понять, почему бренд отстаёт в конкретном регионе.
 
 **Действия:**
-1. Agents tab → Market Fit Analyst показывает: *"Nandos (premium brand) has 37% fewer locations per capita in East Midlands — despite income decile 6"*
+1. Agents tab → Market Fit Analyst показывает: *"Nandos (premium brand) has 37% fewer locations per capita in East Midlands — despite income decile 5"*
 2. Открывает карту → выбирает East Midlands → drill-down по регионам
 3. Видит: Nandos 42 точки, McDonald's 120, KFC 85. Доля Nandos 10% vs 15% nationally
 4. Включает слой "Station analysis" → видит серые/оранжевые маркеры (low/medium opportunity) в Nottingham, Leicester, Derby
-5. **Вывод:** East Midlands — состоятельный регион (income decile 6), но Nandos недопредставлен на 37%. Конкуренты уже там. Это аномалия — нужно наращивать присутствие.
+5. **Вывод:** East Midlands — состоятельный регион (income decile 5), но Nandos недопредставлен на 37%. Конкуренты уже там. Это аномалия — нужно наращивать присутствие.
 
 **Ценность:** Стратег знает свои цифры, но не видит, как они соотносятся с демографией и конкурентами. Getplace показывает разрыв между потенциалом региона и текущим присутствием бренда.
 
@@ -489,8 +516,8 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 1. Agents tab → Human Flow Analyst: *"Canada Water: 18.7M passengers/year but only 1 QSR ~13 min walk"*
 2. Включает "Station analysis" + Display: Both (рестораны + станции)
 3. Зумит к Canada Water → видит: крупный зелёный маркер (high opportunity, 18.7M трафик), почти нет ресторанных точек рядом
-4. Кликает popup: opportunity score, 18.7M пассажиров, 1 QSR, bus stops: 45 (high pedestrian), 7-signal breakdown, Missing: McDonalds, Dominos, KFC, Nandos, PapaJohns
-5. Сравнивает с соседними станциями (London Bridge — 115M, 25 QSR, зелёный маркер)
+4. Кликает popup: opportunity score, 18.7M пассажиров, 1 QSR, bus stops: 40 (high pedestrian), 7-signal breakdown, Missing: McDonalds, Dominos, KFC, Nandos, PapaJohns
+5. Сравнивает с соседними станциями (London Bridge — 54.7M, 9 QSR, зелёный маркер)
 6. **Вывод:** Canada Water — "пустая" станция с огромным трафиком. Почти весь QSR сосредоточен на London Bridge. Это gap — 18.7M человек проходят мимо, а кормить их нечем.
 
 **Ценность:** Real Estate team обычно ищет помещения по цене/размеру. Getplace добавляет слой "где люди" — можно не тратить время на районы с красивым помещением, но без трафика.
@@ -504,7 +531,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 **Действия:**
 1. Открывает Explorer → выбирает только Subway в Brands
 2. Agents tab → фильтрует инсайты по Subway:
-   - Human Flow: *"London Liverpool Street (98M) has McDonalds, KFC, Nandos — but zero Subway"*. Wait, Subway IS there. Let me check another: *"London Waterloo (70.4M) has Subway, McDonalds, KFC, Nandos — but zero Dominos"*
+   - Human Flow: *"London Waterloo (70.4M) has Subway, McDonalds, KFC, Nandos — but zero Dominos"*
    - Market Fit: *"Subway (value brand) has 21% fewer locations per capita in London than national average"*
    - Opportunity Engine: Convergent opportunities для Subway
 3. Делает скриншоты карты со слоем Station analysis — зелёные/оранжевые opportunity маркеры рядом с Subway-точками
@@ -521,8 +548,8 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 **Действия:**
 1. Включает Display: Both + Station footfall overlay
 2. Зумит к своему городу (например, Manchester)
-3. Видит: Manchester Piccadilly — зелёный маркер (206 bus stops, 27.4M пассажиров, 9 QSR). Manchester Victoria — красный (234 bus stops, 8.4M, мало QSR)
-4. Popup для Victoria: *"234 bus stops nearby — high pedestrian area"*, но QSR мало
+3. Видит: Manchester Piccadilly — зелёный маркер (206 bus stops, 27.4M пассажиров, 9 QSR). Manchester Victoria — оранжевый (234 bus stops, 8.4M, 14 QSR)
+4. Popup для Victoria: *"234 bus stops nearby — high pedestrian area"*, 14 QSR рядом
 5. **Вывод:** Victoria — район с очень высокой пешеходной активностью (234 автобусных остановки!), но ресторанов недостаточно. Если у бренда есть точка рядом — это сигнал для delivery/промо push. Если нет — это возможность для открытия.
 
 **Ценность:** Regional Manager обычно оценивает свои точки по выручке. Bus stop density показывает потенциал района "снаружи" — может, низкая выручка не из-за плохой локации, а из-за недостаточного маркетинга в оживлённом районе.
@@ -535,9 +562,9 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 
 **Действия:**
 1. "У нас есть данные 21K ресторанов 6 брендов. Одних — компания может получить сама."
-2. "Мы добавили 3 внешних источника: 2,587 станций с трафиком, 371K автобусных остановок, демографию 33K микрорайонов."
+2. "Мы добавили 7 внешних источников: 2,587 станций с трафиком (ORR), 371K автобусных остановок (NaPTAN), демографию 43.5K микрорайонов (IMD/WIMD/SIMD/NIMDM), дорожный трафик 46K точек (DfT), дневное рабочее население по 7K+ MSOA (Census WP001), занятость по отраслям (BRES), зарплаты по отраслям (ASHE)."
 3. Открывает карту → включает Station footfall → показывает красные точки
-4. "Вот Canada Water — 18.7M пассажиров в год, 45 автобусных остановок (оживлённый район), но только 1 QSR в 13 минутах пешком."
+4. "Вот Canada Water — 18.7M пассажиров в год, 40 автобусных остановок (оживлённый район), но только 1 QSR в 13 минутах пешком."
 5. Открывает Agents → Opportunity Engine: "Nandos at Liverpool Street: score 95/100, 2 signals: high-footfall + high-pedestrian"
 6. "Subway не видит данные Nandos. Nandos не видит данные станций. Мы видим и то, и другое — и находим, что Nandos нужно стоять у Liverpool Street. Вот за это платят."
 
@@ -549,7 +576,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 
 ### Для аналитика (пошаговый гайд)
 
-1. Открыть `http://localhost:8083/explorer`
+1. Открыть `http://localhost:8080/explorer`
 2. В сайдбаре → **Display** → "Both" (показать и регионы, и точки ресторанов)
 3. В сайдбаре → **Overlays** → "🚉 Station footfall" (включить слой станций)
 4. Зумить к нужному городу — видны красные/оранжевые/зелёные маркеры станций
@@ -577,6 +604,7 @@ python3 scripts/convert-bus-density.py
 python3 scripts/convert-traffic.py
 python3 scripts/convert-demographics.py
 python3 scripts/convert-workplace-pop.py
+python3 scripts/convert-worker-salary.py
 
 # 3. Пересобрать приложение
 npm run build
@@ -631,6 +659,7 @@ scripts/
   convert-traffic.py              # DfT AADF → traffic-data.ts
   convert-demographics.py         # IMD + WIMD + SIMD + NIMDM → demographic-data.ts (12 регионов)
   convert-workplace-pop.py        # Census 2021 WP001 → обогащает station-data.ts
+  convert-worker-salary.py        # BRES + ASHE → обогащает station-data.ts полем estWorkerSalary
 
 src/data/
   station-data.ts                 # 2,361 станция с QSR proximity + bus stop density + workplace population
@@ -642,7 +671,8 @@ src/lib/
   geo-utils.ts                    # Haversine + proximity utilities
   human-flow-agent.ts             # Агент: где люди?
   market-fit-agent.ts             # Агент: кто люди?
-  opportunity-engine-agent.ts     # Агент: где открываться? (5 сигналов)
+  opportunity-scoring.ts          # Scoring-движок: 7 сигналов, веса, composite score
+  opportunity-engine-agent.ts     # Агент: где открываться? (использует opportunity-scoring.ts)
 
 Модифицированные файлы:
   src/lib/agent-engine.ts         # +3 AgentId, +InsightType unions, +3 AGENT_DEFINITIONS
@@ -660,6 +690,6 @@ src/lib/
 
 ## Ключевая мысль
 
-Ресторанная сеть может посмотреть на карту своих точек. Но она **не может** наложить данные конкурентов + пассажиропоток + автобусные остановки + демографию и увидеть: "У вас 0 точек рядом с Liverpool Street (98M пассажиров/год, 234 автобусных остановки — high pedestrian area), а McDonald's и KFC уже стоят — спрос доказан, ваша аудитория соответствует, Score: 95/100."
+Ресторанная сеть может посмотреть на карту своих точек. Но она **не может** наложить данные конкурентов + пассажиропоток + автобусные остановки + демографию и увидеть: "У вас 0 точек рядом с Liverpool Street (98M пассажиров/год, 112 автобусных остановки — high pedestrian area), а McDonald's и KFC уже стоят — спрос доказан, ваша аудитория соответствует, Score: 95/100."
 
-Этот инсайт невозможен из одного источника данных. Его создаёт **пересечение шести**: данные конкурентов (Getplace), пассажирский трафик (ORR), пешеходная активность (NaPTAN bus stops), дорожный трафик (DfT), демография (UK Deprivation Indices — IMD/WIMD/SIMD/NIMDM), дневное рабочее население (Census 2021). Именно это Getplace может продавать.
+Этот инсайт невозможен из одного источника данных. Его создаёт **пересечение восьми**: данные конкурентов (Getplace), пассажирский трафик (ORR), пешеходная активность (NaPTAN bus stops), дорожный трафик (DfT), демография (UK Deprivation Indices — IMD/WIMD/SIMD/NIMDM), дневное рабочее население (Census 2021), занятость по отраслям (BRES), зарплаты по отраслям (ASHE). Именно это Getplace может продавать.
