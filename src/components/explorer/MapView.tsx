@@ -93,8 +93,12 @@ const INCOME_COLORS = [
   "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a",
 ];
 
+const IMD_SCORES = REGION_DEMOGRAPHICS.map(d => d.avgImdScore);
+const IMD_MIN = Math.min(...IMD_SCORES);
+const IMD_MAX = Math.max(...IMD_SCORES);
+
 function imdColor(score: number): string {
-  const t = Math.max(0, Math.min(1, (score - 14) / 16));
+  const t = Math.max(0, Math.min(1, (score - IMD_MIN) / (IMD_MAX - IMD_MIN || 1)));
   return `rgb(${Math.round(34 + t * 205)},${Math.round(197 - t * 129)},${Math.round(94 - t * 26)})`;
 }
 
@@ -732,7 +736,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         <div>Income decile: <strong>${demo.medianIncomeDecile}</strong>/10</div>
         <div>Deprivation score: <strong>${demo.avgImdScore.toFixed(1)}</strong></div>
         <div>Employment: <strong>${(demo.avgEmploymentScore * 100).toFixed(1)}%</strong></div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px">${demo.lsoaCount.toLocaleString()} LSOAs</div>
+        <div style="font-size:10px;color:#94a3b8;margin-top:2px">${demo.lsoaCount.toLocaleString()} ${demo.microAreaLabel} (${demo.deprivationSource})</div>
       </div>`, { sticky: true });
     });
 
