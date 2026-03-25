@@ -66,23 +66,26 @@ Country Explorer изначально позиционировался как **
 
 **Как используется:** Фильтруем до топ-5,000 точек по трафику. Для каждой считаем кол-во drive-thru ресторанов в радиусе 1.5км. Высокий трафик + мало drive-thru = возможность.
 
-### 4. IMD 2025 (Index of Multiple Deprivation — демография)
+### 4. UK Deprivation Indices (демография)
 
-| | |
-|---|---|
-| **Что содержит** | Индекс депривации по ~33,755 микрорайонам (LSOA) Англии: доход, занятость, образование, здоровье, преступность |
-| **Кто публикует** | Ministry of Housing, Communities and Local Government (через gov.uk) |
-| **Частота обновления** | Раз в ~5 лет. IMD 2025 вышел 30 октября 2025 |
-| **Формат** | CSV, File 7 — все скоры, ранги, децили |
-| **Ключевые поля** | LSOA code, LA District name, Income Score (rate), Employment Score (rate), Income Decile |
-| **Скачать** | https://www.gov.uk/government/statistics/english-indices-of-deprivation-2025 → File 7 |
-| **Лицензия** | OGL v3.0 |
+Четыре национальных индекса депривации, нормализованных в единую шкалу:
 
-**Почему этот источник:** IMD — стандартный инструмент для оценки социально-экономического профиля территорий UK. Используется в городском планировании, бизнес-аналитике, госуправлении. Income Score позволяет понять, соответствует ли аудитория района целевой аудитории бренда (premium vs value).
+| Нация | Индекс | Версия | Единиц | Формат | Источник |
+|-------|--------|--------|--------|--------|----------|
+| England | IMD | 2025 | 33,755 LSOA | CSV | gov.uk |
+| Wales | WIMD | 2025 | 1,917 LSOA | ODS | gov.wales |
+| Scotland | SIMD | 2020v2 | 6,973 Data Zones | XLSX | gov.scot |
+| N. Ireland | NIMDM | 2017 | 890 SOA | XLS | nisra.gov.uk |
 
-**Ограничение:** Данные только по Англии. Уэльс, Шотландия, Северная Ирландия имеют собственные индексы с другой методологией. В текущей версии покрыто 9 из 12 регионов.
+Все данные под Open Government Licence v3.0. Итого: ~43,535 микрорайонов по всему UK.
 
-**Как используется:** LSOA-уровневые данные агрегируются до 12 UK-регионов (через маппинг Local Authority → ITL1 Region). Для каждого региона считается средний income score и медианный income decile.
+**Почему эти источники:** Индексы депривации — стандартный инструмент для оценки социально-экономического профиля территорий UK. Income deprivation rate позволяет понять, соответствует ли аудитория района целевой аудитории бренда (premium vs value).
+
+**Нормализация (Combo A+C):**
+- **Вариант C (для scoring):** Income deprivation rate из всех 4 индексов объединяется в единое UK-wide распределение → UK-wide перцентили → децили. `medianIncomeDecile` сопоставим между нациями.
+- **Вариант A (для карты):** Composite deprivation score нормализуется в 0-100 внутри каждой нации (для SIMD и NIMDM — из рангов). Не сопоставим между нациями, но достаточен для визуализации.
+
+**Как используется:** Данные на уровне микрорайонов агрегируются до 12 UK-регионов (через маппинг Local Authority / Data Zone / SOA → ITL1 Region). Для каждого региона считается средний income score, медианный UK-normalized income decile, и средний composite deprivation score.
 
 ### 5. Census 2021 Workplace Population (WP001)
 
@@ -165,7 +168,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 | `scripts/convert-stations.py` | ORR CSV + NaPTAN CSV + brand GeoJSON | `src/data/station-data.ts` (2,361 станция) | Джойнит ORR (2,589 станций) с NaPTAN координатами (fuzzy match 99.92% = 2,587), фильтрует до 2,361 с region assignment, считает QSR в радиусе 400м/800м/1500м |
 | `scripts/convert-bus-density.py` | NaPTAN CSV + station-data.ts | Обогащает `station-data.ts` полем busStopCount800m | Считает автобусные остановки в радиусе 800м от каждой станции (371K stops) |
 | `scripts/convert-traffic.py` | DfT AADF CSV + brand GeoJSON | `src/data/traffic-data.ts` (5,000 точек) | Фильтрует топ-5000 по трафику, считает drive-thru в радиусе 1.5км |
-| `scripts/convert-demographics.py` | IMD 2025 CSV | `src/data/demographic-data.ts` (9 регионов) | Агрегирует 33,755 LSOA в 9 английских регионов |
+| `scripts/convert-demographics.py` | IMD 2025 + WIMD 2025 + SIMD 2020v2 + NIMDM 2017 | `src/data/demographic-data.ts` (12 регионов) | Загружает 4 национальных индекса (43,535 микрорайонов), нормализует income rate в UK-wide децили, агрегирует в 12 регионов |
 | `scripts/convert-workplace-pop.py` | WP001 CSV + MSOA centroids + station-data.ts | Обогащает `station-data.ts` полем `workplacePop1500m` | Суммирует workplace population всех MSOA в 1.5km от станции |
 | `scripts/convert-worker-salary.py` | BRES CSV + ASHE CSV + MSOA centroids + MSOA-LAD lookup + station-data.ts | Обогащает `station-data.ts` полем `estWorkerSalary` | Для каждой станции: nearest LA → SIC employment profile (BRES) × median pay (ASHE) → weighted avg salary |
 
@@ -545,7 +548,7 @@ const MIN_SIGNALS = 2                   // минимум совпадающих
 
 | Ограничение | Влияние | Как решить |
 |-------------|---------|-----------|
-| IMD только для Англии | Wales, Scotland, N.Ireland без demographic insights | Добавить WIMD (Wales), SIMD (Scotland) |
+| NIMDM 2017 устарел (данные 2015/16) | N.Ireland demographic insights менее актуальны | Мониторить обновление NIMDM от NISRA |
 | Census 2021 WP001 — snapshot 2021 | Post-COVID remote work мог изменить паттерны | Мониторить Census 2031 или использовать ONS Business Register (IDBR) как дополнение |
 | Бренд-income аффинити — эвристика | Может не соответствовать реальному позиционированию | Валидировать с клиентами, заменить на data-driven classification |
 | Timeline не влияет на новых агентов | Станции/демография статичны | Годовые snapshot-ы ORR данных → temporal station insights |
@@ -563,13 +566,13 @@ scripts/
   convert-stations.py             # ORR + NaPTAN → station-data.ts (fuzzy match 99.92%)
   convert-bus-density.py          # NaPTAN bus stops → обогащает station-data.ts
   convert-traffic.py              # DfT AADF → traffic-data.ts
-  convert-demographics.py         # IMD 2025 → demographic-data.ts
+  convert-demographics.py         # IMD + WIMD + SIMD + NIMDM → demographic-data.ts (12 регионов)
   convert-workplace-pop.py        # Census 2021 WP001 → обогащает station-data.ts
 
 src/data/
   station-data.ts                 # 2,361 станция с QSR proximity + bus stop density + workplace population
   traffic-data.ts                 # 5,000 точек дорожного трафика
-  demographic-data.ts             # 9 регионов с демографией
+  demographic-data.ts             # 12 регионов с демографией (IMD + WIMD + SIMD + NIMDM)
   Data for assignment/external/   # Сырые CSV файлы (не в git)
 
 src/lib/
@@ -596,4 +599,4 @@ src/lib/
 
 Ресторанная сеть может посмотреть на карту своих точек. Но она **не может** наложить данные конкурентов + пассажиропоток + автобусные остановки + демографию и увидеть: "У вас 0 точек рядом с Liverpool Street (98M пассажиров/год, 234 автобусных остановки — high pedestrian area), а McDonald's и KFC уже стоят — спрос доказан, ваша аудитория соответствует, Score: 95/100."
 
-Этот инсайт невозможен из одного источника данных. Его создаёт **пересечение шести**: данные конкурентов (Getplace), пассажирский трафик (ORR), пешеходная активность (NaPTAN bus stops), дорожный трафик (DfT), демография (IMD), дневное рабочее население (Census 2021). Именно это Getplace может продавать.
+Этот инсайт невозможен из одного источника данных. Его создаёт **пересечение шести**: данные конкурентов (Getplace), пассажирский трафик (ORR), пешеходная активность (NaPTAN bus stops), дорожный трафик (DfT), демография (UK Deprivation Indices — IMD/WIMD/SIMD/NIMDM), дневное рабочее население (Census 2021). Именно это Getplace может продавать.

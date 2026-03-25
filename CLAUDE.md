@@ -28,12 +28,12 @@ Run a single test file: `npx vitest run src/test/agent-engine.test.ts`
 ### Key subsystems
 
 - **Agent system** (`src/lib/*-agent.ts`, `src/lib/agent-engine.ts`) — Custom-built AI agent orchestration for market analysis. Agents: human-flow, market-fit, opportunity-engine, delivery-intel.
-- **Opportunity scoring** (`src/lib/opportunity-scoring.ts`) — Scores locations for QSR expansion potential using demographic, traffic, and station data. 7-signal weighted model.
+- **Opportunity scoring** (`src/lib/opportunity-scoring.ts`) — Scores locations for QSR expansion potential using demographic, traffic, and station data. 7-signal weighted model. Demographic signal uses UK-wide normalized income deciles from 4 national deprivation indices.
 - **Explorer** (`src/components/explorer/`) — Main interactive map + data exploration interface.
 - **Map layers** (`src/hooks/map-layers/types.ts`, inline in `MapView.tsx`) — Toggleable data overlays. Each layer is a self-contained `useEffect` in MapView using `mapRef.current` directly. Current layers:
   - **Station analysis** — merged footfall + opportunity score. Size = passenger volume, color = opportunity confidence (green/amber/gray). Rich popup with QSR coverage, brand gaps, and 7-signal breakdown.
   - **Road traffic flow** — heatmap + drive-thru opportunity markers. Filter: high-traffic roads only (50K+ vehicles/day).
-  - **Income level** / **Deprivation index** — demographic overlays that recolor region polygons. Use `demoActiveStylesRef` to preserve colors during hover.
+  - **Income level** / **Deprivation index** — demographic overlays that recolor all 12 UK region polygons. Data from IMD 2025 (England), WIMD 2025 (Wales), SIMD 2020v2 (Scotland), NIMDM 2017 (N. Ireland). `imdColor` uses dynamic min/max range. Tooltips show source and micro-area label per nation. Use `demoActiveStylesRef` to preserve colors during hover.
 - **Layer UI** (`src/components/explorer/LayerPanel.tsx`, `MapLegend.tsx`) — Categorized toggle panel ("Stations & Opportunities", "Road Traffic", "Demographics") with per-layer descriptions + dynamic legend.
 - **Landing page** (`src/components/landing/`) — Marketing landing page with early access flow. Headline: "Find your next 50 locations before competitors do." Links open Insights view.
 - **Radar** (`src/components/radar/`) — Expansion radar visualization with region ranking.
