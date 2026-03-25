@@ -1,10 +1,12 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
+import type { LayerId, TrafficLayerOptions } from "@/hooks/map-layers/types";
 import Header from "@/components/explorer/Header";
 import type { ViewType } from "@/components/explorer/Header";
 import Sidebar from "@/components/explorer/Sidebar";
 import MapView from "@/components/explorer/MapView";
 import RegionPanel from "@/components/explorer/RegionPanel";
 import TableView from "@/components/explorer/TableView";
+import OpportunitiesView from "@/components/explorer/OpportunitiesView";
 import RadarSidebar from "@/components/radar/RadarSidebar";
 import RadarMapView from "@/components/radar/RadarMapView";
 import RadarPanel from "@/components/radar/RadarPanel";
@@ -27,11 +29,11 @@ const TOPO_URLS: Record<CountryCode, string> = {
   uk: "/uk-topo.json",
 };
 
-const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar"]);
+const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar", "opportunities"]);
 
 function readViewFromHash(): ViewType {
   const raw = window.location.hash.replace("#", "") as ViewType;
-  return VALID_VIEWS.has(raw) ? raw : "map";
+  return VALID_VIEWS.has(raw) ? raw : "opportunities";
 }
 
 const Explorer = () => {
@@ -45,6 +47,8 @@ const Explorer = () => {
   const [display, setDisplay] = useState<Display>("choropleth");
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
   const [topoData, setTopoData] = useState<any>(null);
+  const [activeLayers, setActiveLayers] = useState<ReadonlySet<LayerId>>(new Set())
+  const [trafficOptions, setTrafficOptions] = useState<TrafficLayerOptions>({})
   const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -116,6 +120,19 @@ const Explorer = () => {
     setActiveView("map");
   }, []);
 
+  const handleToggleLayer = useCallback((id: LayerId) => {
+    setActiveLayers((prev) => {
+      const next = new Set(prev)
+      // Demographic layers are mutually exclusive
+      if (id === "demographicIncome" && !prev.has(id)) next.delete("demographicImd")
+      if (id === "demographicImd" && !prev.has(id)) next.delete("demographicIncome")
+
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
   const handleClosePanel = useCallback(() => {
     setSelectedRegion(null);
   }, []);
@@ -151,6 +168,8 @@ const Explorer = () => {
           insights={agents.insights}
           agentStatuses={agents.agentStatuses}
           onMarkAllInsightsRead={agents.markAllRead}
+          selectedBrands={selectedBrands}
+          allBrandsCount={Object.keys(countryConfig.brands).length}
         />
         {activeView !== "radar" && (
           <TimelineSlider
@@ -206,6 +225,10 @@ const Explorer = () => {
                 onCreateBrandGroup={createBrandGroup}
                 onDeleteBrandGroup={deleteBrandGroup}
                 visibleIndices={timeline.visibleIndices}
+                activeLayers={activeLayers}
+                onToggleLayer={handleToggleLayer}
+                trafficOptions={trafficOptions}
+                onTrafficOptionsChange={setTrafficOptions}
               />
               {activeView === "map" ? (
                 <>
@@ -217,9 +240,15 @@ const Explorer = () => {
                     onRegionSelect={handleRegionSelect}
                     topoData={topoData}
                     visibleIndices={timeline.visibleIndices}
+                    activeLayers={activeLayers}
+                    trafficOptions={trafficOptions}
                   />
                   <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
                 </>
+              ) : activeView === "opportunities" ? (
+                <div className="flex-1 overflow-auto">
+                  <OpportunitiesView selectedBrands={selectedBrands} />
+                </div>
               ) : (
                 <div className="flex-1 overflow-auto">
                   <TableView onRegionSelect={handleRegionSelect} />
