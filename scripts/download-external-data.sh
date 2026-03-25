@@ -74,7 +74,7 @@ echo ""
 echo "[5/8] WIMD 2025..."
 if [ ! -f "wimd-2025-scores.ods" ]; then
   curl -L -o "wimd-2025-scores.ods" \
-    "https://www.gov.wales/sites/default/files/statistics-and-research/2025-11/wimd-2025-index-and-domain-scores-by-small-area.ods"
+    "https://www.gov.wales/sites/default/files/statistics-and-research/2025-12/wimd-2025-index-and-domain-scores-by-small-area.ods"
   echo "  Downloaded wimd-2025-scores.ods"
 else
   echo "  Already exists, skipping"

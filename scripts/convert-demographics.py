@@ -63,13 +63,17 @@ def load_wimd() -> list[MicroArea]:
         print(f"  WARNING: {wimd_file} not found, skipping Wales")
         return []
 
-    df = pd.read_excel(wimd_file, engine="odf", sheet_name=0)
+    df = pd.read_excel(wimd_file, engine="odf", sheet_name="Data", skiprows=3)
     df.columns = [c.strip().lower() for c in df.columns]
-    print(f"  WIMD columns: {list(df.columns[:10])}")
+    print(f"  WIMD columns: {list(df.columns[:12])}")
 
-    income_col = next((c for c in df.columns if "income" in c and "score" in c), None)
-    employment_col = next((c for c in df.columns if "employment" in c and "score" in c), None)
-    overall_col = next((c for c in df.columns if "wimd" in c and "2025" in c and "score" not in c), None)
+    income_col = next((c for c in df.columns if c == "income"), None)
+    if not income_col:
+        income_col = next((c for c in df.columns if "income" in c), None)
+    employment_col = next((c for c in df.columns if c == "employment"), None)
+    if not employment_col:
+        employment_col = next((c for c in df.columns if "employment" in c), None)
+    overall_col = next((c for c in df.columns if "wimd" in c and "2025" in c), None)
     if not overall_col:
         overall_col = next((c for c in df.columns if "wimd" in c), None)
 
@@ -111,10 +115,10 @@ def load_simd() -> list[MicroArea]:
         print(f"  WARNING: SIMD files not found, skipping Scotland")
         return []
 
-    df_ind = pd.read_excel(indicators_file, sheet_name=0)
+    df_ind = pd.read_excel(indicators_file, sheet_name="Data")
     df_ind.columns = [c.strip().lower().replace(" ", "_") for c in df_ind.columns]
 
-    df_rank = pd.read_excel(ranks_file, sheet_name=0)
+    df_rank = pd.read_excel(ranks_file, sheet_name="SIMD 2020v2 ranks")
     df_rank.columns = [c.strip().lower().replace(" ", "_") for c in df_rank.columns]
 
     print(f"  SIMD indicator columns: {list(df_ind.columns[:10])}")
