@@ -1,6 +1,6 @@
 // Opportunity Scoring Engine — single source of truth for station-centric analysis
 // Replaces duplicated scoring in OpportunitiesView.tsx and opportunity-engine-agent.ts
-// Weighted 6-signal formula with per-station deep analysis and cited evidence
+// Weighted 7-signal formula with per-station deep analysis and cited evidence
 
 import { STATION_DATA, type StationRecord } from "@/data/station-data"
 import { REGION_DEMOGRAPHICS } from "@/data/demographic-data"
@@ -683,7 +683,7 @@ export function computeStationOpportunities(
         : null,
       signalProfile: bestSignalProfile ?? {
         footfall: 0, brandGap: 0, demographic: 0,
-        density: 0, pedestrian: 0, roadTraffic: 0,
+        density: 0, pedestrian: 0, roadTraffic: 0, workforceDensity: 0,
       },
       analysis,
     })
