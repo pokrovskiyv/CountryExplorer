@@ -280,7 +280,7 @@ function evaluateDemographic(station: StationRecord, brand: string): Signal {
       name: "demographic",
       weight: SIGNAL_WEIGHTS.demographic,
       strength: 0,
-      source: "IMD 2025",
+      source: "No data",
       rawValue: `No demographic data for ${station.region}`,
       fired: false,
     }
@@ -304,7 +304,7 @@ function evaluateDemographic(station: StationRecord, brand: string): Signal {
     name: "demographic",
     weight: SIGNAL_WEIGHTS.demographic,
     strength,
-    source: "IMD 2025",
+    source: demo.deprivationSource,
     rawValue: `Income decile ${demo.medianIncomeDecile}, brand: ${affinity}`,
     fired,
   }
@@ -558,7 +558,7 @@ function analyzeStation(
 
   const demo = REGION_DEMOGRAPHICS.find((d) => d.region === station.region)
   if (!demo) {
-    missingDataNotes.push(`Demographic data unavailable for ${station.region} (IMD covers England only)`)
+    missingDataNotes.push(`Demographic data unavailable for ${station.region}`)
   }
 
   if (!nearestRoad) {
@@ -713,7 +713,7 @@ export function generateNarrative(
   const highConfidence = stations.filter((s) => s.confidence === "high").length
   sentences.push({
     text: `We identified ${stations.length} station areas with expansion opportunities for ${brandLabel} across ${regionSet.size} regions, averaging ${avgScore}/100 confidence. ${highConfidence} stations show high-confidence convergence (4+ signals).`,
-    sources: ["ORR 2024-25", "Getplace", "NaPTAN", "IMD 2025", "DfT AADF"],
+    sources: ["ORR 2024-25", "Getplace", "NaPTAN", "UK Deprivation Indices", "DfT AADF"],
   })
 
   // Sentence 2: Geographic concentration
