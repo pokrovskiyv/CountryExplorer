@@ -58,11 +58,13 @@ Region mapping:
 
 **Step 3 — Nation-specific composite normalization (Variant A, for map):**
 - IMD (England): `avgImdScore` used directly (already 0-100 range effectively, though typically 14-30 at region level)
-- WIMD (Wales): `avgWimdScore` used directly (0-100 scale)
-- SIMD (Scotland): ranks normalized to 0-100 via `(6976 - rank) / 6976 * 100`
-- NIMDM (N. Ireland): ranks normalized to 0-100 via `(890 - rank) / 890 * 100`
+- WIMD (Wales): `avgWimdScore` used directly (0-100 scale, where 100 = most deprived)
+- SIMD (Scotland): rank 1 = most deprived, rank 6976 = least deprived. Normalize to 0-100 via `(6976 - rank) / 6976 * 100`, so most deprived → ~100, least deprived → ~0
+- NIMDM (N. Ireland): rank 1 = most deprived, rank 890 = least deprived. Normalize via `(890 - rank) / 890 * 100`
 
 All four scales: 0-100 where higher = more deprived.
+
+**Build-time assertions:** The converter validates that all output `avgImdScore` values fall in 0-100 and all `medianIncomeDecile` values fall in 1-10.
 
 **Step 4 — Generate `demographic-data.ts`:**
 Output: 12 region records (9 England + Wales + Scotland + Northern Ireland).
@@ -74,37 +76,59 @@ Output: 12 region records (9 England + Wales + Scotland + Northern Ireland).
 ```typescript
 export interface RegionDemographics {
   readonly region: string
-  readonly avgIncomeScore: number        // income deprivation rate (nation-specific)
-  readonly avgEmploymentScore: number    // employment deprivation rate (nation-specific)
-  readonly medianIncomeDecile: number    // UK-wide normalized decile (Variant C)
-  readonly avgImdScore: number           // nation-normalized 0-100 composite (Variant A)
+  readonly avgIncomeScore: number        // income deprivation rate (nation-specific, NOT cross-nation comparable)
+  readonly avgEmploymentScore: number    // employment deprivation rate (nation-specific, NOT cross-nation comparable)
+  readonly medianIncomeDecile: number    // UK-wide normalized decile (Variant C) — the ONLY cross-nation comparable field
+  readonly avgImdScore: number           // nation-normalized 0-100 composite (Variant A, for map only)
   readonly lsoaCount: number             // micro-areas count (LSOA / DZ / SOA)
   readonly deprivationSource: string     // "IMD 2025" | "WIMD 2025" | "SIMD 2020" | "NIMDM 2017"
+  readonly microAreaLabel: string        // "LSOAs" | "Data Zones" | "SOAs" — for tooltips
 }
 ```
 
-New field: `deprivationSource`. Existing field `medianIncomeDecile` changes meaning from nation-specific to UK-wide normalized. Values for 9 English regions may shift slightly.
+New fields: `deprivationSource`, `microAreaLabel`. Existing field `medianIncomeDecile` changes meaning from nation-specific to UK-wide normalized. Values for 9 English regions may shift slightly — after running normalization against actual data, validate that brand-affinity thresholds (`>= 6` premium, `<= 5` value) remain stable. If English deciles shift by more than 1, recalibrate thresholds.
+
+**Cross-nation field usage rules:**
+- `medianIncomeDecile` — cross-nation comparable, safe for scoring and cross-region comparison
+- `avgIncomeScore`, `avgEmploymentScore` — nation-specific rates, use for intra-nation display only. Methodological differences across nations make direct comparison misleading (different poverty baselines, different indicators)
+- `avgImdScore` — nation-normalized composite, use for map coloring only
 
 ### 4. Scoring engine (`src/lib/opportunity-scoring.ts`)
 
 Minimal change in `evaluateDemographic`:
 - All 12 regions now found in `REGION_DEMOGRAPHICS` — the `strength: 0` fallback fires only for unknown regions
 - `medianIncomeDecile` is UK-normalized — brand-affinity thresholds (`>= 6` for premium, `<= 5` for value) work correctly cross-nation
-- `source` field reads from `demo.deprivationSource` instead of hardcoded `"IMD 2025"`
+- `source` field reads from `demo.deprivationSource` instead of hardcoded `"IMD 2025"` (both the found and not-found code paths — line 283 fallback uses `"No data"`)
+- `generateNarrative` sources array: replace hardcoded `"IMD 2025"` with `"UK Deprivation Indices"`
 
 ### 5. Map visualization (`src/components/explorer/MapView.tsx`)
 
 **`imdColor` function:**
-Current hardcoded range `(score - 14) / 16` may not fit all 12 regions. Widen to compute from actual min/max across the dataset, or use a broader fixed range.
+Current hardcoded range `(score - 14) / 16` will break for non-England regions (e.g., Wales composite score ~45 would clamp to max red). Fix: compute min/max at render time from `REGION_DEMOGRAPHICS` array:
+```typescript
+const scores = REGION_DEMOGRAPHICS.map(d => d.avgImdScore)
+const min = Math.min(...scores)
+const max = Math.max(...scores)
+const t = (score - min) / (max - min)
+```
+This adapts automatically as data changes.
 
 **Tooltip:**
-Add deprivation source on hover: "Deprivation: 24.5 (IMD 2025)" / "Deprivation: 31.2 (WIMD 2025)".
+- Add deprivation source: "Deprivation: 24.5 (IMD 2025)" / "Deprivation: 31.2 (WIMD 2025)"
+- Use `microAreaLabel` instead of hardcoded "LSOAs": `${demo.lsoaCount} ${demo.microAreaLabel}`
 
 **Income layer:**
 No changes needed — `medianIncomeDecile` is still 1-10, `INCOME_COLORS[idx]` works as before.
 
 **Legend:**
 Stays as-is (gradient Low to High). Optional footnote about cross-nation normalization.
+
+## Additional files to update
+
+- `src/components/explorer/opportunities/ExecutiveBrief.tsx` — `SOURCE_RIBBON` hardcodes "IMD 2025" and "33,755 LSOAs". Update to reflect 4 sources and ~43,538 micro-areas
+- `src/data/ai-opportunity-analysis.ts` — static text mentions "IMD data is unavailable for Scotland/Wales". Remove or update these disclaimers
+- `src/lib/opportunity-scoring.ts` — `generateNarrative` sources array hardcodes "IMD 2025"
+- Generated file header comment in converter — update from "IMD 2025" to "UK Deprivation Indices"
 
 ## What does NOT change
 
