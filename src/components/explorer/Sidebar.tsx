@@ -96,24 +96,28 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
       <div className="p-4 border-b border-border">
         <h3 className="text-[11px] uppercase tracking-wider text-muted-foreground font-semibold mb-3">Map Style</h3>
 
-        <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
-          Shade regions by
-        </div>
-        <div className="flex gap-1 flex-wrap mb-3">
-          {([["total", "Total locations"], ["density", "Per 100k people"], ["share", "Market share"]] as const).map(([m, label]) => (
-            <button
-              key={m}
-              onClick={() => onMetricChange(m)}
-              className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
-                metric === m
-                  ? "bg-blue-600/10 border-blue-600 text-blue-400"
-                  : "bg-surface-1 border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
-              }`}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+        {(display === "choropleth" || display === "both") && (
+          <>
+            <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
+              Shade regions by
+            </div>
+            <div className="flex gap-1 flex-wrap mb-3">
+              {([["total", "Total locations"], ["density", "Per 100k people"], ["share", "Market share"]] as const).map(([m, label]) => (
+                <button
+                  key={m}
+                  onClick={() => onMetricChange(m)}
+                  className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
+                    metric === m
+                      ? "bg-blue-600/10 border-blue-600 text-blue-400"
+                      : "bg-surface-1 border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
 
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
           Display mode
