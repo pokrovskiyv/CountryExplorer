@@ -48,39 +48,48 @@ function CategoricalLegendItem({ config }: { config: Extract<LayerLegendConfig, 
 }
 
 const MapLegend = ({ label, display, metric, maxMetric, interpolateColor, items }: MapLegendProps) => {
+  const showBaseLegend = display !== "points"
+
+  // Hide entire legend if no base legend and no overlay legends
+  if (!showBaseLegend && items.length === 0) return null
+
   return (
     <div className="absolute bottom-6 left-6 bg-surface-0/95 border border-border rounded-lg px-4 py-3 z-[500] text-xs max-h-[50vh] overflow-y-auto">
-      {/* Base legend (choropleth/heatmap) */}
-      <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">{label}</div>
-      {display === "heatmap" ? (
+      {/* Base legend (choropleth/heatmap) — hidden in Points mode */}
+      {showBaseLegend && (
         <>
-          <div className="flex gap-0.5">
-            {["#1e3a8a", "#3b82f6", "#22d3ee", "#facc15", "#ef4444"].map((color) => (
-              <div key={color} className="w-8 h-3.5 rounded-sm" style={{ background: color }} />
-            ))}
-          </div>
-          <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-            <span>Low</span>
-            <span>High</span>
-          </div>
-        </>
-      ) : (
-        <>
-          <div className="flex gap-0.5">
-            {[0, 0.2, 0.4, 0.6, 0.8].map((t) => (
-              <div key={t} className="w-8 h-3.5 rounded-sm" style={{ background: interpolateColor(t) }} />
-            ))}
-          </div>
-          <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-            <span>0</span>
-            <span>{maxMetric.toFixed(metric === "total" ? 0 : 1)}</span>
-          </div>
+          <div className="text-[11px] text-muted-foreground uppercase tracking-wide mb-2">{label}</div>
+          {display === "heatmap" ? (
+            <>
+              <div className="flex gap-0.5">
+                {["#1e3a8a", "#3b82f6", "#22d3ee", "#facc15", "#ef4444"].map((color) => (
+                  <div key={color} className="w-8 h-3.5 rounded-sm" style={{ background: color }} />
+                ))}
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                <span>Low</span>
+                <span>High</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="flex gap-0.5">
+                {[0, 0.2, 0.4, 0.6, 0.8].map((t) => (
+                  <div key={t} className="w-8 h-3.5 rounded-sm" style={{ background: interpolateColor(t) }} />
+                ))}
+              </div>
+              <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
+                <span>0</span>
+                <span>{maxMetric.toFixed(metric === "total" ? 0 : 1)}</span>
+              </div>
+            </>
+          )}
         </>
       )}
 
       {/* Overlay legends */}
       {items.length > 0 && (
-        <div className="mt-3 pt-3 border-t border-border space-y-3">
+        <div className={showBaseLegend ? "mt-3 pt-3 border-t border-border space-y-3" : "space-y-3"}>
           {items.map(({ id, config }) =>
             config.type === "gradient" ? (
               <GradientLegendItem key={id} config={config} />
