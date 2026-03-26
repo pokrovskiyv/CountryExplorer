@@ -221,10 +221,12 @@ function evaluateFootfall(station: StationRecord): Signal {
 function evaluateBrandGap(station: StationRecord, brand: string): Signal {
   const brandCount = station.brandCounts800m[brand] ?? 0
   const fired = brandCount === 0 && station.qsrCount800m > 0
+  // More competitors without our brand = more validated demand
+  const strength = fired ? 0.6 + Math.min(station.qsrCount800m / 10, 1) * 0.2 : 0
   return {
     name: "brandGap",
     weight: SIGNAL_WEIGHTS.brandGap,
-    strength: fired ? 0.8 : 0,
+    strength,
     source: "Getplace",
     rawValue: fired
       ? `${brand} absent, ${station.qsrCount800m} competitors within 800m`
@@ -350,10 +352,9 @@ function evaluateLowDensity(station: StationRecord, avgQsr: number): Signal {
   }
 
   const ratio = station.qsrCount800m / avgQsr
-  let fired = false
-  let strength = 0
-  if (ratio < 0.5) { fired = true; strength = 0.8 }
-  else if (ratio < 0.75) { fired = true; strength = 0.5 }
+  const fired = ratio < 0.75
+  // Linear interpolation: ratio 0 → 0.8, ratio 0.75 → 0
+  const strength = fired ? (1 - ratio / 0.75) * 0.8 : 0
 
   return {
     name: "density",
@@ -367,10 +368,9 @@ function evaluateLowDensity(station: StationRecord, avgQsr: number): Signal {
 
 function evaluatePedestrian(station: StationRecord): Signal {
   const busStops = station.busStopCount800m ?? 0
-  let fired = false
-  let strength = 0
-  if (busStops >= 50) { fired = true; strength = 0.9 }
-  else if (busStops >= 30) { fired = true; strength = 0.6 }
+  const fired = busStops >= 30
+  // Linear ramp: 30 stops → 0.3, 100+ stops → 0.9
+  const strength = fired ? Math.min((busStops - 30) / 70, 1) * 0.6 + 0.3 : 0
 
   return {
     name: "pedestrian",
@@ -395,10 +395,8 @@ function evaluateRoadTraffic(nearestRoad: NearestRoad | null): Signal {
   }
 
   const fired = nearestRoad.aadf >= 50_000 && nearestRoad.driveThruCount < 2
-  let strength = 0
-  if (fired) {
-    strength = nearestRoad.aadf >= 100_000 ? 0.9 : 0.6
-  }
+  // Linear ramp: 50K → 0.5, 150K+ → 0.9
+  const strength = fired ? Math.min((nearestRoad.aadf - 50_000) / 100_000, 1) * 0.4 + 0.5 : 0
 
   return {
     name: "roadTraffic",
@@ -412,10 +410,11 @@ function evaluateRoadTraffic(nearestRoad: NearestRoad | null): Signal {
 
 function evaluateWorkforceDensity(station: StationRecord): Signal {
   const wp = station.workplacePop1500m ?? 0
-  let fired = false
-  let strength = 0
-  if (wp >= 50_000) { fired = true; strength = 0.9 }
-  else if (wp >= 20_000) { fired = true; strength = 0.6 }
+  const fired = wp >= 10_000
+  // Log-scale ramp: 10K → 0.3, ~32K → 0.6, 100K+ → 0.9
+  const strength = fired
+    ? Math.min((Math.log(wp) - Math.log(10_000)) / (Math.log(100_000) - Math.log(10_000)), 1) * 0.6 + 0.3
+    : 0
 
   return {
     name: "workforceDensity",
@@ -720,6 +719,45 @@ export function computeStationOpportunities(
   return results
     .sort((a, b) => b.compositeScore - a.compositeScore)
     .map((opp, i) => ({ ...opp, rank: i + 1 }))
+}
+
+/**
+ * Compute a location-level signal profile for every busy station,
+ * independent of brand-specific opportunity scoring.
+ * Used to display signal bars in popups even when no brand gap exists.
+ */
+export function computeAllStationSignals(): ReadonlyMap<string, SignalProfile> {
+  if (!STATION_DATA || STATION_DATA.length === 0) return new Map()
+
+  const busyStations = STATION_DATA.filter(
+    (s) => s.annualEntries >= MIN_STATION_TRAFFIC,
+  )
+  const avgQsr =
+    busyStations.reduce((sum, s) => sum + s.qsrCount800m, 0) /
+    Math.max(busyStations.length, 1)
+
+  const roadCache = new Map<string, NearestRoad | null>()
+  for (const station of busyStations) {
+    roadCache.set(station.name, findNearestRoadForStation(station, TRAFFIC_DATA))
+  }
+
+  const result = new Map<string, SignalProfile>()
+
+  for (const station of busyStations) {
+    const nearestRoad = roadCache.get(station.name) ?? null
+    const signals: Signal[] = [
+      evaluateFootfall(station),
+      { name: "brandGap", weight: SIGNAL_WEIGHTS.brandGap, strength: 0, source: "n/a", rawValue: "", fired: false },
+      evaluateDemographic(station, "__neutral__"),
+      evaluateLowDensity(station, avgQsr),
+      evaluatePedestrian(station),
+      evaluateRoadTraffic(nearestRoad),
+      evaluateWorkforceDensity(station),
+    ]
+    result.set(station.name, buildSignalProfile(signals))
+  }
+
+  return result
 }
 
 // --- Narrative generator ---
