@@ -230,7 +230,6 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     map.getPane("trafficPane")!.style.zIndex = "440";
     map.createPane("stationPane");
     map.getPane("stationPane")!.style.zIndex = "610";
-    map.getPane("stationPane")!.style.pointerEvents = "none";
 
     mapRef.current = map;
 
@@ -614,20 +613,16 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
       const size = 16 + ratio * 16;
       const icon = stationDivIcon(size, color, isTop ? "#ffffff" : "rgba(255,255,255,0.5)", isTop ? 2 : 1);
-      const marker = L.marker([station.lat, station.lon], { icon, pane: "stationPane" });
+      const marker = L.marker([station.lat, station.lon], { icon, pane: "stationPane", interactive: true });
       marker.bindPopup(popup, { maxWidth: 320 });
+      marker.on("click", () => onRegionSelect(station.region));
       markers.push(marker);
     }
 
     stationAnalysisRef.current = L.layerGroup(markers).addTo(map);
 
-    // Disable region interaction layer so it doesn't intercept station/brand clicks
-    const regionPane = map.getPane("regionInteractionPane");
-    if (regionPane) regionPane.style.pointerEvents = "none";
-
     return () => {
       if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; }
-      if (regionPane) regionPane.style.pointerEvents = "";
     };
   }, [activeLayers.has("stationAnalysis"), oppByStation]);
 
