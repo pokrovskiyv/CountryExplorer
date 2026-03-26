@@ -274,6 +274,33 @@ function evaluateDemographic(station: StationRecord, brand: string): Signal {
     }
   }
 
+  // Station-level: local income decile from nearby micro-areas (1.5km)
+  const localDecile = station.localIncomeDecile ?? 0
+  if (localDecile > 0) {
+    let fired = false
+    let strength = 0
+
+    if (affinity === "premium" && localDecile >= 6) {
+      fired = true
+      strength = 0.7 + (localDecile - 6) * 0.1
+    } else if (affinity === "value" && localDecile <= 5) {
+      fired = true
+      strength = 0.6 + (5 - localDecile) * 0.1
+    } else if (affinity === "neutral" && localDecile >= 3) {
+      fired = true
+      strength = 0.5
+    }
+
+    return {
+      name: "demographic",
+      weight: SIGNAL_WEIGHTS.demographic,
+      strength,
+      source: "Local income (1.5km)",
+      rawValue: `Local income decile ${localDecile} (1.5km), brand: ${affinity}`,
+      fired,
+    }
+  }
+
   // Fallback: residential income decile for non-business districts
   if (!demo) {
     return {
@@ -305,7 +332,7 @@ function evaluateDemographic(station: StationRecord, brand: string): Signal {
     weight: SIGNAL_WEIGHTS.demographic,
     strength,
     source: demo.deprivationSource,
-    rawValue: `Income decile ${demo.medianIncomeDecile}, brand: ${affinity}`,
+    rawValue: `Region income decile ${demo.medianIncomeDecile} (${station.region}), brand: ${affinity}`,
     fired,
   }
 }
@@ -557,7 +584,8 @@ function analyzeStation(
   }
 
   const demo = REGION_DEMOGRAPHICS.find((d) => d.region === station.region)
-  if (!demo) {
+  const hasLocalIncome = (station.localIncomeDecile ?? 0) > 0
+  if (!demo && !hasLocalIncome) {
     missingDataNotes.push(`Demographic data unavailable for ${station.region}`)
   }
 
@@ -571,7 +599,7 @@ function analyzeStation(
 
   // Data completeness: 7 possible data sources
   let sourcesWithData = 4 // ORR, NaPTAN bus, Getplace brands, Getplace QSR always present
-  if (demo) sourcesWithData++
+  if (demo || hasLocalIncome) sourcesWithData++
   if (nearestRoad) sourcesWithData++
   if (wp > 0) sourcesWithData++
   const dataCompleteness = Math.round((sourcesWithData / 7) * 100)
