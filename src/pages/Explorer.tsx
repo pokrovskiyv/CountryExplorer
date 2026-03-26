@@ -108,12 +108,14 @@ const Explorer = () => {
 
   const handleToggleBrand = useCallback((brand: string, checked: boolean) => {
     setSelectedBrands((prev) => {
+      // In market share mode, only one brand can be selected (radio behavior)
+      if (metric === "share") return new Set([brand])
       const next = new Set(prev);
       if (checked) next.add(brand);
       else next.delete(brand);
       return next;
     });
-  }, []);
+  }, [metric]);
 
   const handleRegionSelect = useCallback((name: string) => {
     setSelectedRegion(name);
@@ -217,7 +219,12 @@ const Explorer = () => {
                 selectedBrands={selectedBrands}
                 onToggleBrand={handleToggleBrand}
                 metric={metric}
-                onMetricChange={setMetric}
+                onMetricChange={(m) => {
+                  if (m === "share" && selectedBrands.size > 1) {
+                    setSelectedBrands(new Set([[...selectedBrands][0]]))
+                  }
+                  setMetric(m)
+                }}
                 display={display}
                 onDisplayChange={setDisplay}
                 brandGroups={brandGroups}
