@@ -11,8 +11,8 @@ import type { LayerId, TrafficLayerOptions, LayerLegendConfig } from "@/hooks/ma
 import { STATION_DATA } from "@/data/station-data";
 import { TRAFFIC_DATA } from "@/data/traffic-data";
 import { REGION_DEMOGRAPHICS } from "@/data/demographic-data";
-import { computeStationOpportunities, fmt as fmtNumber } from "@/lib/opportunity-scoring";
-import type { StationOpportunity, ConfidenceLevel } from "@/lib/opportunity-scoring";
+import { computeStationOpportunities, computeAllStationSignals, fmt as fmtNumber } from "@/lib/opportunity-scoring";
+import type { StationOpportunity, SignalProfile, ConfidenceLevel } from "@/lib/opportunity-scoring";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
@@ -45,6 +45,25 @@ function getMarkerOpacity(zoom: number): number {
   return 0.85;
 }
 
+function stationDivIcon(size: number, fillColor: string, strokeColor: string, strokeWidth: number): L.DivIcon {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="${size}" height="${size}">
+    <circle cx="12" cy="12" r="11" fill="${fillColor}" stroke="${strokeColor}" stroke-width="${strokeWidth}"/>
+    <rect x="7" y="6" width="10" height="10" rx="2" fill="white" opacity="0.9"/>
+    <rect x="9" y="8" width="2.5" height="3" rx="0.5" fill="${fillColor}"/>
+    <rect x="12.5" y="8" width="2.5" height="3" rx="0.5" fill="${fillColor}"/>
+    <rect x="8" y="13" width="8" height="1.5" rx="0.5" fill="${fillColor}"/>
+    <circle cx="9.5" cy="17.5" r="1" fill="white" opacity="0.9"/>
+    <circle cx="14.5" cy="17.5" r="1" fill="white" opacity="0.9"/>
+  </svg>`;
+  const half = size / 2;
+  return L.divIcon({
+    className: "station-icon",
+    html: svg,
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  });
+}
+
 // --- Station popup builder ---
 
 function qsrColor(qsr: number): string {
@@ -57,26 +76,9 @@ function fmtK(n: number): string {
   return n >= 1_000_000 ? `${(n / 1_000_000).toFixed(1)}M` : `${Math.round(n / 1_000)}K`;
 }
 
-// --- Traffic color interpolation ---
+// --- Traffic heatmap max ---
 
-const TLOG_MIN = Math.log(1_000);
 const TLOG_MAX = Math.log(220_000);
-const T_STOPS = [
-  { t: 0, r: 59, g: 130, b: 246 },
-  { t: 0.33, r: 34, g: 211, b: 238 },
-  { t: 0.66, r: 250, g: 204, b: 21 },
-  { t: 1, r: 239, g: 68, b: 68 },
-];
-
-function trafficColor(aadf: number): string {
-  const t = Math.max(0, Math.min(1, (Math.log(aadf) - TLOG_MIN) / (TLOG_MAX - TLOG_MIN)));
-  let lo = T_STOPS[0], hi = T_STOPS[T_STOPS.length - 1];
-  for (let i = 0; i < T_STOPS.length - 1; i++) {
-    if (t >= T_STOPS[i].t && t <= T_STOPS[i + 1].t) { lo = T_STOPS[i]; hi = T_STOPS[i + 1]; break; }
-  }
-  const s = (t - lo.t) / (hi.t - lo.t || 1);
-  return `rgb(${Math.round(lo.r + (hi.r - lo.r) * s)},${Math.round(lo.g + (hi.g - lo.g) * s)},${Math.round(lo.b + (hi.b - lo.b) * s)})`;
-}
 
 // --- Opportunity colors ---
 
@@ -157,12 +159,12 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
   // Overlay layer refs
   const stationAnalysisRef = useRef<L.LayerGroup | null>(null);
-  const trafficLayerRef = useRef<L.LayerGroup | null>(null);
   const trafficHeatRef = useRef<L.Layer | null>(null);
   const demoAppliedRef = useRef(false);
   const demoSavedStylesRef = useRef<Map<any, any>>(new Map());
   // Stores the active demographic styles per region name so hover handlers can restore them
   const demoActiveStylesRef = useRef<Map<string, any>>(new Map());
+  const brandDimmedRef = useRef(false);
 
   const allBrands = useMemo(() => Object.keys(BRANDS), [BRANDS]);
 
@@ -227,7 +229,8 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     map.createPane("trafficPane");
     map.getPane("trafficPane")!.style.zIndex = "440";
     map.createPane("stationPane");
-    map.getPane("stationPane")!.style.zIndex = "460";
+    map.getPane("stationPane")!.style.zIndex = "610";
+    map.getPane("stationPane")!.style.pointerEvents = "none";
 
     mapRef.current = map;
 
@@ -430,7 +433,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     if (display === "points" || display === "both") {
       const zoom = map.getZoom();
       const radius = getMarkerRadius(zoom);
-      const opacity = getMarkerOpacity(zoom);
+      const opacity = brandDimmedRef.current ? 0.18 : getMarkerOpacity(zoom);
 
       const sortedBrands = [...selectedBrands].sort(
         (a, b) => (BRAND_POINTS[a] || []).length - (BRAND_POINTS[b] || []).length
@@ -468,13 +471,25 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       const onZoomEnd = () => {
         const z = map.getZoom();
         const r = getMarkerRadius(z);
-        const o = getMarkerOpacity(z);
+        const o = brandDimmedRef.current ? 0.18 : getMarkerOpacity(z);
         allMarkers.forEach((m) => { m.setRadius(r); m.setStyle({ fillOpacity: o }); });
       };
       map.on("zoomend", onZoomEnd);
       return () => { map.off("zoomend", onZoomEnd); };
     }
   }, [selectedBrands, display, visibleIndices, BRAND_POINTS, BRANDS, brandAttributes]);
+
+  // Dim brand markers when station analysis overlay is active
+  useEffect(() => {
+    const dimmed = activeLayers.has("stationAnalysis") && (display === "points" || display === "both");
+    brandDimmedRef.current = dimmed;
+    const targetOpacity = dimmed ? 0.18 : getMarkerOpacity(mapRef.current?.getZoom() ?? 8);
+    Object.values(pointLayersRef.current).forEach((lg) => {
+      lg.eachLayer((layer) => {
+        (layer as L.CircleMarker).setStyle({ fillOpacity: targetOpacity });
+      });
+    });
+  }, [activeLayers.has("stationAnalysis"), display]);
 
   // Update heatmap layer
   useEffect(() => {
@@ -530,6 +545,8 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     return m;
   }, [opportunities]);
 
+  const allStationSignals = useMemo(() => computeAllStationSignals(), []);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -537,7 +554,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; }
     if (!activeLayers.has("stationAnalysis")) return;
 
-    const markers: L.CircleMarker[] = [];
+    const markers: L.Marker[] = [];
     const maxEntries = STATION_DATA[0]?.annualEntries || 1;
     const walkMin = Math.round((0.8 * 1.35) / 5 * 60);
 
@@ -554,7 +571,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       const brandList = Object.entries(station.brandCounts800m).filter(([, c]) => c > 0).map(([b, c]) => `${b}: ${c}`).join(", ");
       const absent = Object.entries(station.brandCounts800m).filter(([, c]) => c === 0).map(([b]) => b).join(", ");
 
-      let popup = `<div style="font-size:13px;min-width:260px">
+      let popup = `<div style="font-size:13px;min-width:260px;max-width:300px;overflow:hidden">
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
           <div style="font-weight:700">\u{1F689} ${escapeHtml(station.name)}</div>
           ${opp ? `<div style="background:${color};color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">${opp.compositeScore.toFixed(0)}</div>` : ""}
@@ -574,81 +591,63 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         ${brandList ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:3px">\u2713 Present: ${escapeHtml(brandList)}</div>` : ""}
         ${absent ? `<div style="font-size:11px;color:#f59e0b;margin-bottom:3px">\u2717 Missing: ${escapeHtml(absent)}</div>` : ""}`;
 
-      if (opp) {
-        const signals = [
-          { l: "Footfall", v: opp.signalProfile.footfall },
-          { l: "Brand gap", v: opp.signalProfile.brandGap },
-          { l: "Demographic", v: opp.signalProfile.demographic },
-          { l: "Density", v: opp.signalProfile.density },
-          { l: "Pedestrian", v: opp.signalProfile.pedestrian },
-          { l: "Road traffic", v: opp.signalProfile.roadTraffic },
-          { l: "Workforce", v: opp.signalProfile.workforceDensity },
-        ];
-        popup += `<div style="margin-top:6px">`;
-        for (const s of signals) {
-          const pct = Math.round(s.v * 100);
-          const bc = pct > 60 ? "#22c55e" : pct > 30 ? "#f59e0b" : "#6b7280";
-          popup += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:70px;font-size:10px;color:#94a3b8">${s.l}</div><div style="flex:1;background:rgba(100,116,139,0.2);border-radius:2px;height:6px"><div style="width:${pct}%;background:${bc};border-radius:2px;height:6px"></div></div><div style="width:24px;text-align:right;font-size:10px;color:#94a3b8">${pct}</div></div>`;
-        }
-        popup += `</div>`;
+      const sp: SignalProfile = opp?.signalProfile ?? allStationSignals.get(station.name) ?? {
+        footfall: 0, brandGap: 0, demographic: 0, density: 0, pedestrian: 0, roadTraffic: 0, workforceDensity: 0,
+      };
+      const signals = [
+        { l: "Footfall", v: sp.footfall },
+        { l: "Brand gap", v: sp.brandGap },
+        { l: "Demographic", v: sp.demographic },
+        { l: "Density", v: sp.density },
+        { l: "Pedestrian", v: sp.pedestrian },
+        { l: "Road traffic", v: sp.roadTraffic },
+        { l: "Workforce", v: sp.workforceDensity },
+      ];
+      popup += `<div style="margin-top:6px">`;
+      for (const s of signals) {
+        const pct = Math.round(s.v);
+        const bc = pct > 60 ? "#22c55e" : pct > 30 ? "#f59e0b" : "#6b7280";
+        popup += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:70px;flex-shrink:0;font-size:10px;color:#94a3b8">${s.l}</div><div style="flex:1;min-width:0;background:rgba(100,116,139,0.2);border-radius:2px;height:6px;overflow:hidden"><div style="width:${pct}%;background:${bc};border-radius:2px;height:6px"></div></div><div style="width:24px;flex-shrink:0;text-align:right;font-size:10px;color:#94a3b8">${pct}</div></div>`;
       }
       popup += `</div>`;
+      popup += `</div>`;
 
-      const marker = L.circleMarker([station.lat, station.lon], {
-        radius, fillColor: color,
-        color: isTop ? "#ffffff" : "rgba(255,255,255,0.5)",
-        weight: isTop ? 2.5 : 1.5, fillOpacity: 0.8, pane: "stationPane",
-      });
+      const size = 16 + ratio * 16;
+      const icon = stationDivIcon(size, color, isTop ? "#ffffff" : "rgba(255,255,255,0.5)", isTop ? 2 : 1);
+      const marker = L.marker([station.lat, station.lon], { icon, pane: "stationPane" });
       marker.bindPopup(popup, { maxWidth: 320 });
       markers.push(marker);
     }
 
     stationAnalysisRef.current = L.layerGroup(markers).addTo(map);
-    return () => { if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; } };
+
+    // Disable region interaction layer so it doesn't intercept station/brand clicks
+    const regionPane = map.getPane("regionInteractionPane");
+    if (regionPane) regionPane.style.pointerEvents = "none";
+
+    return () => {
+      if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; }
+      if (regionPane) regionPane.style.pointerEvents = "";
+    };
   }, [activeLayers.has("stationAnalysis"), oppByStation]);
 
-  // Road traffic flow overlay — heatmap + drive-thru opportunity markers
+  // Road traffic flow overlay — heatmap only
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     if (trafficHeatRef.current) { map.removeLayer(trafficHeatRef.current); trafficHeatRef.current = null; }
-    if (trafficLayerRef.current) { map.removeLayer(trafficLayerRef.current); trafficLayerRef.current = null; }
     if (!activeLayers.has("traffic")) return;
 
     const driveThruOnly = trafficOptions?.driveThruOnly ?? false;
     const heatPoints: [number, number, number][] = [];
-    const opportunityMarkers: L.CircleMarker[] = [];
 
     for (const pt of TRAFFIC_DATA) {
-      // Heatmap: all points, or only high-traffic corridors if driveThruOnly
       if (!driveThruOnly || pt.aadf >= 50_000) {
         heatPoints.push([pt.lat, pt.lon, Math.log(Math.max(1, pt.aadf))]);
       }
-
-      // Opportunity markers: high-traffic + low drive-thru coverage
-      const isDtOpp = pt.aadf >= 50_000 && pt.driveThruCount1500m < 2;
-      if (isDtOpp) {
-        const color = trafficColor(pt.aadf);
-        const marker = L.circleMarker([pt.lat, pt.lon], {
-          radius: 6, fillColor: color, color: "#ffffff",
-          weight: 2, fillOpacity: 0.85, pane: "trafficPane",
-        });
-
-        const tip = `<div style="font-size:12px;min-width:160px">
-          <div style="font-weight:700;margin-bottom:2px">${escapeHtml(pt.roadName)}</div>
-          <div style="color:#94a3b8;font-size:11px;margin-bottom:4px">${escapeHtml(pt.roadType)} \u00b7 ${escapeHtml(pt.region)}</div>
-          <div style="font-size:14px;font-weight:700;color:${color}">${fmtK(pt.aadf)}</div>
-          <div style="font-size:10px;color:#94a3b8">vehicles/day</div>
-          <div style="margin-top:4px;font-size:11px;color:#94a3b8">QSR nearby: ${pt.qsrCount1500m} \u00b7 Drive-thru: ${pt.driveThruCount1500m}</div>
-          <div style="margin-top:4px;font-size:11px;color:#f59e0b;font-weight:600">\u26a1 Drive-thru opportunity</div>
-        </div>`;
-        marker.bindTooltip(tip, { direction: "top", offset: [0, -6] });
-        opportunityMarkers.push(marker);
-      }
     }
 
-    // Heatmap layer — renders in overlayPane (z-index 400), below trafficPane markers
     const trafficHeat = (L as any).heatLayer(heatPoints, {
       radius: 18,
       blur: 14,
@@ -667,13 +666,8 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     if (heatCanvas) heatCanvas.style.pointerEvents = "none";
     trafficHeatRef.current = trafficHeat;
 
-    if (opportunityMarkers.length > 0) {
-      trafficLayerRef.current = L.layerGroup(opportunityMarkers).addTo(map);
-    }
-
     return () => {
       if (trafficHeatRef.current) { map.removeLayer(trafficHeatRef.current); trafficHeatRef.current = null; }
-      if (trafficLayerRef.current) { map.removeLayer(trafficLayerRef.current); trafficLayerRef.current = null; }
     };
   }, [activeLayers.has("traffic"), trafficOptions?.driveThruOnly]);
 
