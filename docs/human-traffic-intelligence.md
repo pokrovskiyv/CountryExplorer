@@ -211,23 +211,109 @@ Country Explorer изначально позиционировался как **
 
 Результат: `avgImdScore` — НЕ сопоставим между нациями (decile 5 в Wales ≠ decile 5 в England по этому полю). Используется **только** для раскраски карты внутри каждого региона. Функция `imdColor` вычисляет min/max динамически из всего массива REGION_DEMOGRAPHICS.
 
-### Правила использования полей
+### Per-station local income decile (`localIncomeDecile`)
 
-| Поле | Cross-nation comparable | Где используется |
-|------|------------------------|-----------------|
-| `medianIncomeDecile` | **Да** — UK-wide normalized | Scoring: brand-income affinity |
-| `avgImdScore` | Нет — nation-specific composite | Карта: цвет региона |
-| `avgIncomeScore` | Нет — разные poverty baselines | Tooltip: information only |
-| `avgEmploymentScore` | Нет — разные методологии | Tooltip: information only |
-| `deprivationSource` | N/A | Tooltip: "IMD 2025" / "WIMD 2025" / etc. |
-| `microAreaLabel` | N/A | Tooltip: "LSOAs" / "Data Zones" / "SOAs" |
+Region-level `medianIncomeDecile` даёт одно значение на весь регион. Все станции Лондона получают decile 3, хотя Bond Street (West End) и Brixton (Lambeth) имеют совершенно разные income profiles. Чтобы это исправить, мы вычисляем **localIncomeDecile** — медианный UK-wide income decile всех микрорайонов в радиусе 1.5km от станции.
+
+#### Источники данных для spatial join
+
+| Файл | Что содержит | Записей | Источник |
+|------|-------------|---------|----------|
+| `lsoa-centroids-2021.csv` | Координаты (lat/lon) центроидов LSOA 2021 | 35,672 | ONS Open Geography Portal, ArcGIS REST `LSOA_PopCentroids_EW_2021_V4` |
+| `dz-centroids-2011.csv` | Координаты центроидов Data Zones 2011 | 6,976 | Scottish Government `SpatialData.gov.scot`, ArcGIS REST |
+| Income rates из IMD/WIMD/SIMD | Income deprivation rate по коду микрорайона | ~42,600 | Те же 3 файла что в region-level pipeline |
+
+Все данные под OGL v3.0. Centroid файлы скачиваются через paginated ArcGIS REST API (2,000 записей/страница для LSOA, 1,000 для DataZone).
+
+#### Алгоритм расчёта
+
+Скрипт: `scripts/convert-local-income.py`. Выполняется **после** convert-worker-salary.py.
+
+**Шаг 1 — Загрузка координат.** Читаем 2 CSV-файла centroids → dict `{area_code: (lat, lon)}`. LSOA покрывают England + Wales, Data Zones — Scotland. Итого ~42,648 точек.
+
+**Шаг 2 — Загрузка income deprivation rates.** Из тех же файлов что использует region-level pipeline, но здесь мы извлекаем **per-area** `{code: income_rate}` вместо агрегации по регионам:
+
+| Источник | Код микрорайона | Колонка income | Нормализация |
+|----------|----------------|---------------|-------------|
+| IMD 2025 CSV | `LSOA code (2021)` | `Income Score (rate)` | Уже 0-1 |
+| WIMD 2025 ODS | `LSOA code` (sheet Data, skiprows=3) | `Income` | 0-100 → делим на 100 |
+| SIMD 2020v2 XLSX | `Data_Zone` (sheet Data) | `Income_rate` | Уже 0-1 |
+
+Income Score (rate) = доля населения микрорайона, живущего в income deprivation (доход ниже 60% медианы страны). Выше rate = беднее район.
+
+**Шаг 3 — UK-wide decile.** Тот же алгоритм что в region-level pipeline:
+1. Собираем все ~42,600 income rates в один массив
+2. Сортируем ascending (от наименее бедных к наиболее бедным)
+3. Каждому присваиваем перцентиль: `i / (n - 1)`
+4. Конвертируем в децили: `decile = 10 - floor(percentile × 10)` → 1 = самые бедные 10%, 10 = самые богатые 10%
+
+**Шаг 4 — Spatial join.** Для каждой из 2,361 станций:
+1. Bounding-box pre-filter: ±0.014° lat, ±0.022° lon (≈1.7km) отсекает 99% пар без вычисления haversine
+2. Fine filter: haversine distance ≤ 1.5km
+3. Собираем UK-wide deciles всех matched микрорайонов
+4. Берём **медиану** → `localIncomeDecile`
+5. Если 0 микрорайонов в радиусе → `localIncomeDecile: 0` (нет данных, fallback на region)
+
+Результат: 95% станций (2,252 из 2,361) получают ненулевой `localIncomeDecile`. 109 станций без данных — rural/island станции.
+
+#### Как scoring engine использует localIncomeDecile
+
+Функция `evaluateDemographic` в `opportunity-scoring.ts` проверяет три уровня данных в порядке приоритета:
+
+```
+1. Business district (50K+ workers, estWorkerSalary > 0)
+   → SIC-weighted worker salary from BRES + ASHE
+   → Source: "BRES + ASHE"
+   → 62 станции
+
+2. Station-level local income (localIncomeDecile > 0)
+   → Median decile of micro-areas within 1.5km
+   → Source: "Local income (1.5km)"
+   → ~2,190 станций (после исключения бизнес-станций)
+
+3. Region fallback (REGION_DEMOGRAPHICS lookup)
+   → medianIncomeDecile региона
+   → Source: deprivationSource ("IMD 2025" / "WIMD 2025" / etc.)
+   → ~109 станций без local data
+```
+
+Brand-affinity пороги одинаковы на всех уровнях: premium brands (Nando's) → decile ≥ 6, value brands (Subway, KFC) → decile ≤ 5, neutral brands (McDonald's) → decile ≥ 3.
+
+#### Примеры: London больше не монолитный
+
+| Станция | Region decile | Local decile | Что изменилось |
+|---------|--------------|-------------|---------------|
+| Bond Street | 3 | 8 | Premium brands теперь fire в West End |
+| Richmond | 3 | 9 | Один из самых богатых районов London — теперь отражено |
+| Brixton | 3 | 3 | Остался 3 — Lambeth действительно deprivation hotspot |
+| Liverpool Street | 3 (→ worker salary) | 3 | Бизнес-район: scoring использует £34K worker salary, не local decile |
+| Canary Wharf | 3 (→ worker salary) | 2 | Бизнес-район: £34K salary, хотя Tower Hamlets вокруг — deprivation decile 2 |
+| Clapham Junction | 3 | 5 | Middle-class Battersea — теперь нейтральная, не "бедная" |
+
+#### Зачем это нужно
+
+Без local decile: **все** London станции выглядят одинаково бедными (decile 3). Nando's (premium) не получает demographic signal ни для одной лондонской станции — scoring-модель слепа к тому, что Bond Street и Brixton имеют радикально разную аудиторию.
+
+С local decile: scoring-модель различает ~10 уровней income в пределах одного региона. Bond Street (8) корректно получает premium signal, Brixton (3) — value signal. Это увеличивает precision рекомендаций без добавления новых source данных.
+
+### Правила использования полей (обновлено)
+
+| Поле | Уровень | Cross-nation | Где используется |
+|------|---------|-------------|-----------------|
+| `localIncomeDecile` | Станция (1.5km) | **Да** — UK-wide normalized | **Scoring: primary** demo signal |
+| `medianIncomeDecile` | Регион | **Да** — UK-wide normalized | Scoring: fallback; narrative text |
+| `avgImdScore` | Регион | Нет — nation-specific composite | Карта: цвет региона |
+| `avgIncomeScore` | Регион | Нет — разные poverty baselines | Tooltip: information only |
+| `deprivationSource` | Регион | N/A | Tooltip: "IMD 2025" / "WIMD 2025" / etc. |
+| `microAreaLabel` | Регион | N/A | Tooltip: "LSOAs" / "Data Zones" / "SOAs" |
 
 ### Ограничения нормализации
 
-1. **Income rate — не идентичная метрика.** England/NI используют "60% медианы" страны, Wales — аналогично но с другой медианой, Scotland — набор индикаторов вместо одного порога. На практике разница невелика для агрегата на уровне регионов.
-2. **NIMDM 2017 устарел.** Данные 2015/16 — 10-летней давности. NI income decile может не отражать текущую реальность.
-3. **Composite scores не выровнены.** avgImdScore 28.45 (North East, IMD) и 49.94 (N. Ireland, NIMDM) нельзя сравнивать — это разные шкалы. На карте это выглядит как "NI более депривирован чем NE", что может быть неточно.
-4. **Потеря "multiple" из MDI.** Для scoring мы используем только income — теряем health, education, crime и другие домены. Для QSR site selection это приемлемо: income — главный предиктор brand affinity.
+1. **Income rate — не идентичная метрика.** England/NI используют "60% медианы" страны, Wales — аналогично но с другой медианой, Scotland — набор индикаторов вместо одного порога. На практике разница невелика — и для station-level, и для region-level.
+2. **NIMDM 2017 устарел.** Данные 2015/16 — 10-летней давности. NI income decile может не отражать текущую реальность. (Но NI станций в dataset = 0.)
+3. **Composite scores не выровнены.** avgImdScore 28.45 (North East, IMD) и 49.94 (N. Ireland, NIMDM) нельзя сравнивать — это разные шкалы. Используется **только** для раскраски карты.
+4. **Потеря "multiple" из MDI.** Для scoring мы используем только income — теряем health, education, crime. Для QSR site selection это приемлемо: income — главный предиктор brand affinity.
+5. **Residential vs. visitor income.** localIncomeDecile измеряет доход *жителей* микрорайона, а не посетителей станции. Canary Wharf = 2 (бедные резиденты Tower Hamlets) несмотря на офисных workers с £100K+ зарплатами. Бизнес-районы (50K+ workers) обходят это через worker salary коррекцию (приоритет 1).
 
 ---
 
@@ -256,6 +342,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 | `scripts/convert-demographics.py` | IMD 2025 + WIMD 2025 + SIMD 2020v2 + NIMDM 2017 | `src/data/demographic-data.ts` (12 регионов) | Загружает 4 национальных индекса (43,535 микрорайонов), нормализует income rate в UK-wide децили, агрегирует в 12 регионов |
 | `scripts/convert-workplace-pop.py` | WP001 CSV + MSOA centroids + station-data.ts | Обогащает `station-data.ts` полем `workplacePop1500m` | Суммирует workplace population всех MSOA в 1.5km от станции |
 | `scripts/convert-worker-salary.py` | BRES CSV + ASHE CSV + MSOA centroids + MSOA-LAD lookup + station-data.ts | Обогащает `station-data.ts` полем `estWorkerSalary` | Для каждой станции: nearest LA → SIC employment profile (BRES) × median pay (ASHE) → weighted avg salary |
+| `scripts/convert-local-income.py` | LSOA centroids + DZ centroids + IMD/WIMD/SIMD + station-data.ts | Обогащает `station-data.ts` полем `localIncomeDecile` | Spatial join: median UK-wide income decile микрорайонов в 1.5km от станции. 95% станций получают данные |
 
 ### Файлы данных (TypeScript)
 
@@ -396,6 +483,7 @@ Proximity-расчёты (сколько ресторанов в радиусе 
 | 2026-03-25 | Footfall: линейная шкала с cap 20M → log-шкала `(log(entries) - log(1M)) / (log(max) - log(1M))` | 22 станции >20M получали одинаковый score=100, теряя 5x разницу в трафике. Распределение крайне неравномерное (медиана 290K, max 98M) — log лучше передаёт magnitude | Топ-станции получили дифференцированные scores: Liverpool Street 100, Victoria 87, Bond Street 82, Clapham Junction 70. Средние станции (~8M) незначительно выросли (+5) |
 | 2026-03-25 | Demo fit: SIC-weighted worker salary для деловых кварталов (50K+ workers) вместо neutral 0.5 | Residential income decile не отражает lunch crowd в business districts. Добавлены 2 новых источника: BRES (employment by SIC, NOMIS) + ASHE (median pay by SIC, ONS). Pipeline: station → nearest LA → BRES SIC profile × ASHE pay → estimated salary | 62 бизнес-станции получают data-driven demo fit вместо neutral. Liverpool Street (finance-heavy, £35K) = strong fit для Nando's. Hospitality-heavy районы = better fit для KFC. Новое поле `estWorkerSalary` в station-data.ts (2,318 из 2,361 станций) |
 | 2026-03-25 | Demo fit: UK-wide deprivation — 4 национальных индекса (IMD + WIMD + SIMD + NIMDM) вместо England-only IMD | Wales, Scotland, N.Ireland были белыми на карте, demo fit = `fired: false` для всех станций этих наций. Combo A+C нормализация: income rate → UK-wide percentile → decile (Variant C для scoring), nation-specific composite → 0-100 (Variant A для карты) | 12 регионов вместо 9, 43,535 микрорайонов. Wales decile=5, Scotland decile=8, NI decile=7. Станции в Scotland/Wales/NI теперь получают demographic signal. Карта заполнена без пробелов |
+| 2026-03-25 | Demo fit: per-station `localIncomeDecile` вместо region-level decile | Все London станции имели decile 3, Bond Street и Brixton неразличимы. Region-level decile скрывает intra-regional вариацию. Spatial join: ~42K centroid координат LSOA/DataZone + income rates → median decile в 1.5km от станции | 95% станций (2,252/2,361) получают station-level decile. Bond Street=8, Richmond=9, Brixton=3. Scoring engine: local > region fallback. Business districts по-прежнему используют worker salary (приоритет 1) |
 
 #### Как мы это позиционируем
 
@@ -605,6 +693,7 @@ python3 scripts/convert-traffic.py
 python3 scripts/convert-demographics.py
 python3 scripts/convert-workplace-pop.py
 python3 scripts/convert-worker-salary.py
+python3 scripts/convert-local-income.py   # MUST run after convert-worker-salary
 
 # 3. Пересобрать приложение
 npm run build
@@ -660,9 +749,10 @@ scripts/
   convert-demographics.py         # IMD + WIMD + SIMD + NIMDM → demographic-data.ts (12 регионов)
   convert-workplace-pop.py        # Census 2021 WP001 → обогащает station-data.ts
   convert-worker-salary.py        # BRES + ASHE → обогащает station-data.ts полем estWorkerSalary
+  convert-local-income.py         # LSOA/DZ centroids + income rates → обогащает station-data.ts полем localIncomeDecile
 
 src/data/
-  station-data.ts                 # 2,361 станция с QSR proximity + bus stop density + workplace population
+  station-data.ts                 # 2,361 станция с QSR proximity, bus density, workplace pop, worker salary, local income
   traffic-data.ts                 # 5,000 точек дорожного трафика
   demographic-data.ts             # 12 регионов с демографией (IMD + WIMD + SIMD + NIMDM)
   Data for assignment/external/   # Сырые CSV файлы (не в git)
