@@ -246,8 +246,6 @@ Custom House набрал 7 из 7 сигналов. Base score 60 × 1.25 bonus
 | Шотландия нет в WP001 | Нет zone scoring | Census Scotland покрытие |
 | Brand affinity — эвристика | Premium/value может не совпадать | Валидировать с клиентами |
 
-![Рис. 11. Expansion Radar: 12 регионов UK ранжированы по потенциалу экспансии](../screenshots/11-radar.png)
-
 ---
 
 ## Технические детали
