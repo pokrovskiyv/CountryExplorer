@@ -364,7 +364,7 @@ Income Score (rate) = доля населения микрорайона (LSOA /
 
 ## Три новых агента
 
-Все агенты — **статические** (запускаются один раз при загрузке, не зависят от таймлайна). Следуют паттерну `delivery-intel-agent.ts`: чистые функции, readonly данные, diversity-first cap.
+Все агенты — **статические** (запускаются один раз при загрузке, не зависят от таймлайна). Следуют паттерну существующих агентов: чистые функции, readonly данные, diversity-first cap.
 
 ### 1. Human Flow Analyst (amber)
 
@@ -643,21 +643,16 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
 
 ### Hook (useAgents.ts)
 
-- `AGENT_IDS` расширен с 4 до 7
+- `AGENT_IDS` сокращён до 2 (market-monitor, competitor-tracker)
 - `MAX_INSIGHTS` увеличен с 50 до 70
-- Логика запуска не изменена — хук уже обрабатывал static agents обобщённо
-
-### UI (AgentsTab.tsx)
-
-- 3 новые иконки: Activity (amber), Users (cyan), Target (rose)
-- 3 новых цвета в `AGENT_COLORS`
+- Убран концепт static agents — все агенты теперь temporal
 
 ### Лендинговая страница (Landing page)
 
 - Hero: "Find your next 50 locations before competitors do" (посыл «инсайты прежде всего»)
-- Features: заголовки сфокусированы на пользе ("See where competitors win", "7 AI agents working for you", "Never miss a competitive move")
-- `LANDING_AGENTS`: 7 карточек с примерами инсайтов
-- "See the Platform" и "Try Explorer" ведут на `/explorer#opportunities` (вид Insights)
+- Features: заголовки сфокусированы на пользе ("See where competitors win", "2 AI agents working for you", "Never miss a competitive move")
+- `LANDING_AGENTS`: 2 карточки с примерами инсайтов
+- "See the Platform" и "Try Explorer" ведут на `/explorer#smart-map` (вид Map & Insights)
 
 ### Карта (MapView.tsx) — переключаемые слои данных (toggleable data layers)
 
@@ -801,8 +796,7 @@ type OpportunityEngineInsightType = "convergent-opportunity" | "multi-signal-dea
    - Кол-во QSR ~13 мин пешком
    - Плотность автобусных остановок (высокая/средняя/низкая пешеходная активность)
    - Какие бренды ✓ есть и ✗ отсутствуют
-6. Колокольчик (вверху справа) → **Agents** tab → 7 агентов с инсайтами
-7. **Events** tab → полная лента из ~46 инсайтов от всех агентов
+6. Колокольчик (вверху справа) → **Events** tab → лента инсайтов от 2 агентов (Market Monitor, Competitor Tracker)
 
 ### Для разработчика
 
@@ -893,15 +887,14 @@ src/lib/
   opportunity-engine-agent.ts     # Агент: где открываться? (использует opportunity-scoring.ts)
 
 Модифицированные файлы:
-  src/lib/agent-engine.ts         # +3 AgentId, +InsightType unions, +3 AGENT_DEFINITIONS
-  src/hooks/useAgents.ts          # +3 AGENT_IDS, MAX_INSIGHTS 50→70
-  src/components/explorer/AgentsTab.tsx      # +3 иконки, +3 цвета
+  src/lib/agent-engine.ts         # +3 AgentId, +InsightType unions, +3 AGENT_DEFINITIONS (base: 2 agents)
+  src/hooks/useAgents.ts          # +3 AGENT_IDS (base: 2), MAX_INSIGHTS 50→70
   src/components/explorer/MapView.tsx        # +station overlay с popup (walk time + bus density)
   src/components/explorer/Sidebar.tsx        # +Overlays toggle
   src/pages/Explorer.tsx                     # +showStations state
-  src/components/landing/Hero.tsx            # "Seven intelligent agents"
+  src/components/landing/Hero.tsx            # "Two intelligent agents"
   src/components/landing/Features.tsx        # Updated agent description
-  src/components/landing/landing-constants.ts # +3 LANDING_AGENTS
+  src/components/landing/landing-constants.ts # 2 LANDING_AGENTS
 ```
 
 ---

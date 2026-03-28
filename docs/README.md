@@ -49,10 +49,8 @@
 - Persistence правил в localStorage
 
 **AI-инсайты (Agent Team):**
-- 4 агента: Market Monitor, Competitor Tracker, Expansion Scout, Delivery Intel
-- 17 типов инсайтов с приоритизацией (1-5)
-- Delivery Intel анализирует покрытие платформ доставки (Deliveroo, UberEats, Just Eat), drive-thru, Click & Collect
-- Карточки агентов с индикацией статуса (idle/alerting)
+- 2 агента: Market Monitor, Competitor Tracker
+- 8 типов инсайтов с приоритизацией (1-5)
 
 **Expansion Radar:**
 - Scoring-система с 4 факторами и настраиваемыми весами
@@ -72,7 +70,7 @@
 Ценность для клиента (количественная и стратегическая), три модели монетизации, влияние на метрики Getplace, go-to-market стратегия.
 
 ### 5. [Документация для разработки](./04-dev-documentation.md)
-Архитектура, модель данных, API endpoints, структура React-компонентов, CountryContext + custom hooks, Agent Team (4 агента, 17 инсайтов), Expansion Radar, Timeline, система алертов, dual-layer карта.
+Архитектура, модель данных, API endpoints, структура React-компонентов, CountryContext + custom hooks, Agent Team (2 агента, 8 инсайтов), Expansion Radar, Timeline, система алертов, dual-layer карта.
 
 ### 6. [Лендинг фичи](./05-landing-page.html)
 Marketing landing page с hero, stats, features, use cases, CTA.

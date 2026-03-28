@@ -4,9 +4,11 @@ import L from "leaflet"
 
 export type LayerId =
   | "stationAnalysis"
+  | "zoneOpportunities"
   | "traffic"
   | "demographicIncome"
   | "demographicImd"
+  | "peopleDensity"
 
 export interface LayerMeta {
   readonly id: LayerId
@@ -18,9 +20,11 @@ export interface LayerMeta {
 
 export const LAYER_CATALOG: readonly LayerMeta[] = [
   { id: "stationAnalysis", label: "Station analysis", description: "Size = footfall, color = opportunity score", category: "opportunities", color: "#22c55e" },
+  { id: "zoneOpportunities", label: "Zone opportunities", description: "MSOA zones with score 60+ (Evaluate & Act Now)", category: "opportunities", color: "#06b6d4" },
   { id: "traffic", label: "Road traffic flow", description: "Busy roads — white borders mark drive-thru gaps", category: "transport", color: "#3b82f6" },
-  { id: "demographicIncome", label: "Income level", description: "Regions by median income decile", category: "demographics", color: "#a855f7" },
-  { id: "demographicImd", label: "Deprivation index", description: "Regions by government deprivation score", category: "demographics", color: "#ec4899" },
+  { id: "demographicIncome", label: "Income level", description: "Estimated annual salary by MSOA (BRES + ASHE)", category: "demographics", color: "#a855f7" },
+  { id: "demographicImd", label: "Deprivation index", description: "MSOA-level choropleth — England & Wales", category: "demographics", color: "#ec4899" },
+  { id: "peopleDensity", label: "People density", description: "Foot traffic + workplace population heatmap", category: "demographics", color: "#06b6d4" },
 ] as const
 
 // --- Layer legend ---

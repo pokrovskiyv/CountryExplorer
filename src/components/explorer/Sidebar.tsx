@@ -3,6 +3,7 @@ import BrandGroupManager from "@/components/explorer/BrandGroupManager";
 import LayerPanel from "@/components/explorer/LayerPanel";
 import type { BrandGroup } from "@/hooks/useBrandGroups";
 import type { LayerId, TrafficLayerOptions } from "@/hooks/map-layers/types";
+import type { MapStyle } from "@/hooks/useResolvedTheme";
 
 type Metric = "total" | "density" | "share";
 type Display = "choropleth" | "points" | "both" | "heatmap";
@@ -23,9 +24,11 @@ interface SidebarProps {
   onToggleLayer: (id: LayerId) => void;
   trafficOptions?: TrafficLayerOptions;
   onTrafficOptionsChange?: (opts: TrafficLayerOptions) => void;
+  mapStyle?: MapStyle;
+  onMapStyleChange?: (style: MapStyle) => void;
 }
 
-const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup, visibleIndices, activeLayers, onToggleLayer, trafficOptions, onTrafficOptionsChange }: SidebarProps) => {
+const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, display, onDisplayChange, brandGroups, onApplyBrandGroup, onCreateBrandGroup, onDeleteBrandGroup, visibleIndices, activeLayers, onToggleLayer, trafficOptions, onTrafficOptionsChange, mapStyle = "default", onMapStyleChange }: SidebarProps) => {
   const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION } = useCountry();
   // Compute totals — use visibleIndices when available, fall back to static REGION_COUNTS
   const totals: Record<string, number> = {};
@@ -122,13 +125,32 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
           Display mode
         </div>
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex gap-1 flex-wrap mb-3">
           {([["choropleth", "Regions"], ["points", "Points"], ["both", "Both"], ["heatmap", "Heatmap"]] as const).map(([d, label]) => (
             <button
               key={d}
               onClick={() => onDisplayChange(d)}
               className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
                 display === d
+                  ? "bg-blue-600/10 border-blue-600 text-blue-400"
+                  : "bg-surface-1 border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
+          Base map
+        </div>
+        <div className="flex gap-1 flex-wrap">
+          {([["default", "Standard"], ["satellite", "Satellite"]] as const).map(([s, label]) => (
+            <button
+              key={s}
+              onClick={() => onMapStyleChange?.(s)}
+              className={`px-3 py-1.5 rounded-md text-xs transition-colors border ${
+                mapStyle === s
                   ? "bg-blue-600/10 border-blue-600 text-blue-400"
                   : "bg-surface-1 border-border text-muted-foreground hover:border-foreground/30 hover:text-foreground"
               }`}

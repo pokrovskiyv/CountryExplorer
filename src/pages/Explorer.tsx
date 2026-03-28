@@ -5,8 +5,11 @@ import type { ViewType } from "@/components/explorer/Header";
 import Sidebar from "@/components/explorer/Sidebar";
 import MapView from "@/components/explorer/MapView";
 import RegionPanel from "@/components/explorer/RegionPanel";
+import ContextPanel from "@/components/explorer/ContextPanel";
+import type { ContextTarget } from "@/components/explorer/ContextPanel";
 import TableView from "@/components/explorer/TableView";
 import OpportunitiesView from "@/components/explorer/OpportunitiesView";
+import SmartMapView from "@/components/explorer/SmartMapView";
 import RadarSidebar from "@/components/radar/RadarSidebar";
 import RadarMapView from "@/components/radar/RadarMapView";
 import RadarPanel from "@/components/radar/RadarPanel";
@@ -20,6 +23,7 @@ import { COUNTRY_CONFIGS } from "@/data/country-configs";
 import { useCountryData } from "@/hooks/useCountryData";
 import { useAlerts } from "@/hooks/useAlerts";
 import { useAgents } from "@/hooks/useAgents";
+import { useExplorerPersistence, createDebouncedPositionSaver, clearSavedMapPosition } from "@/hooks/useExplorerPersistence";
 
 type CountryCode = "uk";
 type Metric = "total" | "density" | "share";
@@ -29,27 +33,31 @@ const TOPO_URLS: Record<CountryCode, string> = {
   uk: "/uk-topo.json",
 };
 
-const VALID_VIEWS = new Set<ViewType>(["map", "table", "radar", "opportunities"]);
+const VALID_VIEWS = new Set<ViewType>(["smart-map", "table"]);
 
 function readViewFromHash(): ViewType {
   const raw = window.location.hash.replace("#", "") as ViewType;
-  return VALID_VIEWS.has(raw) ? raw : "opportunities";
+  return VALID_VIEWS.has(raw) ? raw : "smart-map";
 }
 
 const Explorer = () => {
   const [activeCountry, setActiveCountry] = useState<CountryCode>("uk");
   const [activeView, setActiveView] = useState<ViewType>(readViewFromHash);
   const { config: countryConfig, isLoading: isCountryLoading } = useCountryData(activeCountry);
-  const [selectedBrands, setSelectedBrands] = useState<Set<string>>(
-    () => new Set(Object.keys(countryConfig.brands))
-  );
-  const [metric, setMetric] = useState<Metric>("total");
-  const [display, setDisplay] = useState<Display>("choropleth");
+  const {
+    metric, setMetric,
+    display, setDisplay,
+    activeLayers, setActiveLayers,
+    trafficOptions, setTrafficOptions,
+    selectedBrands, setSelectedBrands,
+    savedMapPosition,
+  } = useExplorerPersistence({ allBrandKeys: Object.keys(countryConfig.brands) });
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
+  const [contextTarget, setContextTarget] = useState<ContextTarget>(null);
+  const [mapStyle, setMapStyle] = useState<"default" | "satellite">("default");
   const [topoData, setTopoData] = useState<any>(null);
-  const [activeLayers, setActiveLayers] = useState<ReadonlySet<LayerId>>(new Set())
-  const [trafficOptions, setTrafficOptions] = useState<TrafficLayerOptions>({})
   const contentRef = useRef<HTMLDivElement>(null);
+  const handleMapPositionChange = useMemo(() => createDebouncedPositionSaver(500), []);
 
   useEffect(() => {
     window.location.hash = activeView;
@@ -73,9 +81,16 @@ const Explorer = () => {
   const alerts = useAlerts(timeline.currentMonth, countryConfig);
   const agents = useAgents(timeline.currentMonth, countryConfig);
   const [alertsPanelOpen, setAlertsPanelOpen] = useState(false);
+  const [pendingFlyToRegion, setPendingFlyToRegion] = useState<string | null>(null);
 
   const handleApplyBrandGroup = useCallback((brands: readonly string[]) => {
     setSelectedBrands(new Set(brands));
+  }, []);
+
+  const handleInsightNavigate = useCallback((insight: { region: string }) => {
+    setActiveView("smart-map");
+    setAlertsPanelOpen(false);
+    setPendingFlyToRegion(insight.region);
   }, []);
 
   // Load TopoJSON per country
@@ -104,6 +119,7 @@ const Explorer = () => {
     setActiveCountry(code);
     setSelectedBrands(new Set(Object.keys(config.brands)));
     setSelectedRegion(null);
+    clearSavedMapPosition();
   }, []);
 
   const handleToggleBrand = useCallback((brand: string, checked: boolean) => {
@@ -119,15 +135,15 @@ const Explorer = () => {
 
   const handleRegionSelect = useCallback((name: string) => {
     setSelectedRegion(name);
-    setActiveView("map");
+    setContextTarget(null);
   }, []);
 
   const handleToggleLayer = useCallback((id: LayerId) => {
     setActiveLayers((prev) => {
       const next = new Set(prev)
       // Demographic layers are mutually exclusive
-      if (id === "demographicIncome" && !prev.has(id)) next.delete("demographicImd")
-      if (id === "demographicImd" && !prev.has(id)) next.delete("demographicIncome")
+      if (id === "demographicIncome" && !prev.has(id)) { next.delete("demographicImd") }
+      if (id === "demographicImd" && !prev.has(id)) { next.delete("demographicIncome") }
 
       if (next.has(id)) next.delete(id)
       else next.add(id)
@@ -137,6 +153,15 @@ const Explorer = () => {
 
   const handleClosePanel = useCallback(() => {
     setSelectedRegion(null);
+  }, []);
+
+  const handleContextTarget = useCallback((target: ContextTarget) => {
+    setContextTarget(target);
+    setSelectedRegion(null); // close RegionPanel when ContextPanel opens
+  }, []);
+
+  const handleCloseContext = useCallback(() => {
+    setContextTarget(null);
   }, []);
 
   const handleRadarRegionSelect = useCallback((name: string) => {
@@ -168,8 +193,8 @@ const Explorer = () => {
           onRemoveRule={alerts.removeRule}
           onMarkAllRead={alerts.markAllRead}
           insights={agents.insights}
-          agentStatuses={agents.agentStatuses}
           onMarkAllInsightsRead={agents.markAllRead}
+          onInsightNavigate={handleInsightNavigate}
           selectedBrands={selectedBrands}
           allBrandsCount={Object.keys(countryConfig.brands).length}
         />
@@ -236,8 +261,29 @@ const Explorer = () => {
                 onToggleLayer={handleToggleLayer}
                 trafficOptions={trafficOptions}
                 onTrafficOptionsChange={setTrafficOptions}
+                mapStyle={mapStyle}
+                onMapStyleChange={setMapStyle}
               />
-              {activeView === "map" ? (
+              {activeView === "smart-map" ? (
+                <SmartMapView
+                  selectedBrands={selectedBrands}
+                  metric={metric}
+                  display={display}
+                  selectedRegion={selectedRegion}
+                  onRegionSelect={handleRegionSelect}
+                  topoData={topoData}
+                  visibleIndices={timeline.visibleIndices}
+                  activeLayers={activeLayers}
+                  trafficOptions={trafficOptions}
+                  initialCenter={savedMapPosition?.center}
+                  initialZoom={savedMapPosition?.zoom}
+                  onMapPositionChange={handleMapPositionChange}
+                  onContextTarget={handleContextTarget}
+                  mapStyle={mapStyle}
+                  pendingFlyToRegion={pendingFlyToRegion}
+                  onFlyToComplete={() => setPendingFlyToRegion(null)}
+                />
+              ) : activeView === "map" ? (
                 <>
                   <MapView
                     selectedBrands={selectedBrands}
@@ -249,8 +295,17 @@ const Explorer = () => {
                     visibleIndices={timeline.visibleIndices}
                     activeLayers={activeLayers}
                     trafficOptions={trafficOptions}
+                    initialCenter={savedMapPosition?.center}
+                    initialZoom={savedMapPosition?.zoom}
+                    onMapPositionChange={handleMapPositionChange}
+                    onContextTarget={handleContextTarget}
+                    mapStyle={mapStyle}
                   />
-                  <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
+                  {contextTarget ? (
+                    <ContextPanel target={contextTarget} onClose={handleCloseContext} selectedBrands={selectedBrands} />
+                  ) : (
+                    <RegionPanel region={selectedRegion} onClose={handleClosePanel} selectedBrands={selectedBrands} />
+                  )}
                 </>
               ) : activeView === "opportunities" ? (
                 <div className="flex-1 overflow-auto">

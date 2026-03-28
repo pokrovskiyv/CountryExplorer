@@ -4,10 +4,10 @@ import { runAllAgents, AGENT_DEFINITIONS, type AgentId, type AgentInsight } from
 import { OPEN_DATES } from "@/data/temporal-data"
 import type { CountryConfig } from "@/contexts/CountryContext"
 
-const MAX_INSIGHTS = 50
+const MAX_INSIGHTS = 70
 const NOISY_ON_INIT: ReadonlySet<string> = new Set(["stagnant-market"])
 
-const AGENT_IDS: readonly AgentId[] = ["market-monitor", "competitor-tracker", "expansion-scout", "delivery-intel"]
+const AGENT_IDS: readonly AgentId[] = ["market-monitor", "competitor-tracker"]
 
 export type AgentStatus = "idle" | "alerting"
 
@@ -25,58 +25,32 @@ export function useAgents(
   const [insights, setInsights] = useState<readonly AgentInsight[]>([])
   const prevMonthRef = useRef<number>(currentMonth)
   const prevSnapshotRef = useRef<Snapshot | null>(null)
-  const staticRanRef = useRef(false)
 
   const markAllRead = useCallback(() => {
     setInsights((prev) => prev.map((i) => ({ ...i, read: true })))
   }, [])
 
-  // Run all agents once on mount: static agents + temporal agents with same snapshot
+  // Run temporal agents: on mount (prev=next for state-based) and on month change
   useEffect(() => {
-    if (staticRanRef.current) return
-    staticRanRef.current = true
-
-    const allInitialInsights: AgentInsight[] = []
-
-    // Run static agents (delivery-intel)
-    const staticAgents = AGENT_DEFINITIONS.filter((a) => a.static)
-    for (const agent of staticAgents) {
-      allInitialInsights.push(
-        ...agent.run({}, {}, countryConfig, "static")
-      )
-    }
-
-    // Run temporal agents once with same snapshot (state-based insights only)
-    const { brandPoints, cityToRegion } = countryConfig
-    const snapshot = buildSnapshot(currentMonth, OPEN_DATES, brandPoints, cityToRegion)
-
-    for (const agent of AGENT_DEFINITIONS) {
-      if (agent.static) continue
-      const insights = agent.run(snapshot, snapshot, countryConfig, "initial")
-      allInitialInsights.push(
-        ...insights.filter((i) => !NOISY_ON_INIT.has(i.insightType))
-      )
-    }
-
-    if (allInitialInsights.length > 0) {
-      const sorted = [...allInitialInsights].sort((a, b) => a.priority - b.priority)
-      setInsights((prev) => {
-        const withoutInitial = prev.filter(
-          (i) => i.timestamp !== "static" && i.timestamp !== "initial"
-        )
-        return [...sorted, ...withoutInitial].slice(0, MAX_INSIGHTS)
-      })
-    }
-  }, [countryConfig, currentMonth])
-
-  // Run temporal agents when timeline month advances
-  useEffect(() => {
-    if (currentMonth === prevMonthRef.current && prevSnapshotRef.current) return
-
     const { brandPoints, cityToRegion } = countryConfig
     const nextSnapshot = buildSnapshot(currentMonth, OPEN_DATES, brandPoints, cityToRegion)
 
-    if (prevSnapshotRef.current && currentMonth > prevMonthRef.current) {
+    if (!prevSnapshotRef.current) {
+      // Initial run: prev=next produces state-based insights (market-leader, brand-dominance, brand-gap)
+      const initialInsights: AgentInsight[] = []
+      for (const agent of AGENT_DEFINITIONS) {
+        const agentInsights = agent.run(nextSnapshot, nextSnapshot, countryConfig, "initial")
+        initialInsights.push(
+          ...agentInsights.filter((i) => !NOISY_ON_INIT.has(i.insightType))
+        )
+      }
+
+      if (initialInsights.length > 0) {
+        const sorted = [...initialInsights].sort((a, b) => a.priority - b.priority)
+        setInsights(sorted.slice(0, MAX_INSIGHTS))
+      }
+    } else if (currentMonth > prevMonthRef.current) {
+      // Timeline advanced: compare snapshots for change-based insights
       const year = 2015 + Math.floor(currentMonth / 12)
       const monthOfYear = currentMonth % 12
       const monthDate = `${year}-${String(monthOfYear + 1).padStart(2, "0")}`

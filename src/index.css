@@ -150,7 +150,27 @@ All colors MUST be HSL.
   background: transparent !important;
   border: none !important;
 }
+/* Preview highlight pulse when browsing opportunities */
+@keyframes preview-pulse {
+  0%, 100% { stroke-opacity: 0.7; fill-opacity: 0.08; }
+  50% { stroke-opacity: 1; fill-opacity: 0.15; }
+}
+.preview-pulse {
+  animation: preview-pulse 1.5s ease-in-out infinite;
+}
+.station-icon {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: auto !important;
+  cursor: pointer;
+}
 
+.zone-opp-icon {
+  background: transparent !important;
+  border: none !important;
+  pointer-events: auto !important;
+  cursor: pointer;
+}
 /* Custom scrollbar */
 ::-webkit-scrollbar {
   width: 6px;

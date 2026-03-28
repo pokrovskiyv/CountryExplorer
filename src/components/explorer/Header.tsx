@@ -1,10 +1,10 @@
 import { Link } from "react-router-dom";
-import { Crosshair, FileDown, Target } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { exportViewAsPDF } from "@/lib/export-pdf";
 import AlertBadge from "./AlertBadge";
 import ThemeToggle from "./ThemeToggle";
 
-export type ViewType = "map" | "table" | "radar" | "opportunities";
+export type ViewType = "map" | "table" | "radar" | "opportunities" | "smart-map";
 
 interface HeaderProps {
   activeView: ViewType;
@@ -28,6 +28,7 @@ const VIEW_LABELS: Record<ViewType, string> = {
   table: "Table",
   radar: "Radar",
   opportunities: "Insights",
+  "smart-map": "Map & Insights",
 };
 
 const COUNTRIES = [
@@ -45,7 +46,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
       Getplace
     </Link>
     <div className="flex gap-1 ml-8">
-      {(["opportunities", "map", "table", "radar"] as const).map((v) => (
+      {(["smart-map", "table"] as const).map((v) => (
         <button
           key={v}
           onClick={() => onViewChange(v)}
@@ -55,14 +56,7 @@ const Header = ({ activeView, onViewChange, contentRef, activeCountry, onCountry
               : "text-muted-foreground hover:bg-surface-1 hover:text-foreground"
           }`}
         >
-          {v === "radar" && <Crosshair className="w-3.5 h-3.5" />}
-          {v === "opportunities" && <Target className="w-3.5 h-3.5" />}
           {VIEW_LABELS[v]}
-          {v === "radar" && (
-            <span className="text-[9px] bg-pink-500/20 text-pink-400 px-1.5 py-0.5 rounded-full font-bold uppercase leading-none ml-0.5">
-              New
-            </span>
-          )}
         </button>
       ))}
     </div>

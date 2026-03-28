@@ -8,9 +8,13 @@ import { useResolvedTheme, getTileUrls } from "@/hooks/useResolvedTheme";
 import { buildPopupHtml, escapeHtml } from "@/lib/popup-builder";
 import MapLegend from "@/components/explorer/MapLegend";
 import type { LayerId, TrafficLayerOptions, LayerLegendConfig } from "@/hooks/map-layers/types";
+import { useDeprivationGranularLayer } from "@/hooks/map-layers/useDeprivationGranularLayer";
+import type { MsoaClickEvent } from "@/hooks/map-layers/useDeprivationGranularLayer";
+import type { ContextTarget } from "@/components/explorer/ContextPanel";
+import { useIncomeGranularLayer } from "@/hooks/map-layers/useIncomeGranularLayer";
+import { usePeopleDensityLayer } from "@/hooks/map-layers/usePeopleDensityLayer";
 import { STATION_DATA } from "@/data/station-data";
 import { TRAFFIC_DATA } from "@/data/traffic-data";
-import { REGION_DEMOGRAPHICS } from "@/data/demographic-data";
 import { computeStationOpportunities, computeAllStationSignals, fmt as fmtNumber } from "@/lib/opportunity-scoring";
 import type { StationOpportunity, SignalProfile, ConfidenceLevel } from "@/lib/opportunity-scoring";
 
@@ -27,6 +31,20 @@ interface MapViewProps {
   visibleIndices?: Record<string, ReadonlySet<number>>;
   activeLayers?: ReadonlySet<LayerId>;
   trafficOptions?: TrafficLayerOptions;
+  initialCenter?: [number, number];
+  initialZoom?: number;
+  onMapPositionChange?: (center: [number, number], zoom: number) => void;
+  onContextTarget?: (target: ContextTarget) => void;
+  variant?: "default" | "smart-map";
+  onStationSelect?: (stationName: string) => void;
+  highlightedStation?: string | null;
+  focusedStation?: string | null;
+  onMapReady?: (map: L.Map) => void;
+  junctionOpportunities?: readonly import("@/lib/multi-anchor-types").JunctionOpportunity[];
+  onJunctionSelect?: (junctionId: string) => void;
+  zoneOpportunities?: readonly import("@/lib/multi-anchor-types").MsoaOpportunity[];
+  onZoneSelect?: (id: string) => void;
+  mapStyle?: "default" | "satellite";
 }
 
 const EMPTY_LAYERS: ReadonlySet<LayerId> = new Set();
@@ -43,6 +61,21 @@ function getMarkerOpacity(zoom: number): number {
   if (zoom <= 6) return 0.65;
   if (zoom <= 8) return 0.75;
   return 0.85;
+}
+
+const BRAND_HEATMAP_ZOOM = 12; // below → auto-heatmap, at/above → individual markers
+
+const STATION_ZOOM_TIERS = [
+  { maxZoom: 7, minPassengers: 5_000_000 },
+  { maxZoom: 9, minPassengers: 1_500_000 },
+  { maxZoom: 11, minPassengers: 1_000_000 },
+] as const;
+
+function getStationThreshold(zoom: number): number {
+  for (const t of STATION_ZOOM_TIERS) {
+    if (zoom <= t.maxZoom) return t.minPassengers;
+  }
+  return 500_000;
 }
 
 function stationDivIcon(size: number, fillColor: string, strokeColor: string, strokeWidth: number): L.DivIcon {
@@ -62,6 +95,56 @@ function stationDivIcon(size: number, fillColor: string, strokeColor: string, st
     iconSize: [size, size],
     iconAnchor: [half, half],
   });
+}
+
+function numberedStationIcon(rank: number, size: number, tierColor: string): L.DivIcon {
+  const showNumber = rank <= 10
+  const half = size / 2
+  const fontSize = Math.max(9, Math.min(12, size * 0.4))
+  const html = showNumber
+    ? `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${tierColor};border:2px solid white;display:flex;align-items:center;justify-content:center;font-size:${fontSize}px;font-weight:700;color:#000;box-shadow:0 2px 8px rgba(0,0,0,0.4)">${rank}</div>`
+    : `<div style="width:${size}px;height:${size}px;border-radius:50%;background:${tierColor};border:1px solid rgba(255,255,255,0.4);opacity:0.7;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`
+  return L.divIcon({
+    className: "numbered-station-icon",
+    html,
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  })
+}
+
+function zoneDivIcon(size: number, color: string): L.DivIcon {
+  const outer = size;
+  const inner = Math.round(size * 0.36);
+  const half = outer / 2;
+  return L.divIcon({
+    className: "zone-opp-icon",
+    html: `<div style="width:${outer}px;height:${outer}px;border-radius:50%;border:2.5px solid ${color};background:rgba(255,255,255,0.25);display:flex;align-items:center;justify-content:center;box-shadow:0 1px 6px rgba(0,0,0,0.4)">
+      <div style="width:${inner}px;height:${inner}px;border-radius:50%;background:${color}"></div>
+    </div>`,
+    iconSize: [outer, outer],
+    iconAnchor: [half, half],
+  });
+}
+
+function tierColor(score: number): string {
+  if (score >= 80) return "#4ade80"
+  if (score >= 60) return "#fbbf24"
+  return "#94a3b8"
+}
+
+function junctionDivIcon(rank: number, size: number, color: string): L.DivIcon {
+  const showNumber = rank <= 15
+  const half = size / 2
+  const fontSize = Math.max(8, Math.min(11, size * 0.35))
+  const html = showNumber
+    ? `<div style="width:${size}px;height:${size}px;transform:rotate(45deg);border-radius:3px;background:${color};border:2px solid white;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,0.4)"><span style="transform:rotate(-45deg);font-size:${fontSize}px;font-weight:700;color:#000">${rank}</span></div>`
+    : `<div style="width:${size * 0.7}px;height:${size * 0.7}px;transform:rotate(45deg);border-radius:2px;background:${color};border:1px solid rgba(255,255,255,0.4);opacity:0.6;box-shadow:0 1px 4px rgba(0,0,0,0.3)"></div>`
+  return L.divIcon({
+    className: "junction-icon",
+    html,
+    iconSize: [size, size],
+    iconAnchor: [half, half],
+  })
 }
 
 // --- Station popup builder ---
@@ -88,24 +171,6 @@ const CONFIDENCE_COLORS: Record<ConfidenceLevel, string> = {
   low: "#6b7280",
 };
 
-// --- Demographic colors ---
-
-const INCOME_COLORS = [
-  "#7c3aed", "#8b5cf6", "#a78bfa", "#c4b5fd", "#e0e7ff",
-  "#bbf7d0", "#86efac", "#4ade80", "#22c55e", "#16a34a",
-];
-
-const IMD_SCORES = REGION_DEMOGRAPHICS.map(d => d.avgImdScore);
-const IMD_MIN = Math.min(...IMD_SCORES);
-const IMD_MAX = Math.max(...IMD_SCORES);
-
-function imdColor(score: number): string {
-  const t = Math.max(0, Math.min(1, (score - IMD_MIN) / (IMD_MAX - IMD_MIN || 1)));
-  return `rgb(${Math.round(34 + t * 205)},${Math.round(197 - t * 129)},${Math.round(94 - t * 26)})`;
-}
-
-const DEMO_BY_REGION = new Map(REGION_DEMOGRAPHICS.map((d) => [d.region, d]));
-
 // --- Layer legends ---
 
 const STATION_ANALYSIS_LEGEND: LayerLegendConfig = {
@@ -119,6 +184,15 @@ const STATION_ANALYSIS_LEGEND: LayerLegendConfig = {
   ],
 };
 
+const ZONE_OPPORTUNITIES_LEGEND: LayerLegendConfig = {
+  type: "categorical",
+  label: "Zone opportunities",
+  items: [
+    { color: "#06d6a0", label: "Act Now (80+)" },
+    { color: "#06b6d4", label: "Evaluate (60-79)" },
+  ],
+};
+
 const TRAFFIC_LEGEND: LayerLegendConfig = {
   type: "gradient",
   label: "Daily road traffic",
@@ -128,23 +202,8 @@ const TRAFFIC_LEGEND: LayerLegendConfig = {
 };
 
 
-const INCOME_LEGEND: LayerLegendConfig = {
-  type: "gradient",
-  label: "Income level (decile)",
-  colors: ["#7c3aed", "#a78bfa", "#e0e7ff", "#86efac", "#16a34a"],
-  min: "Low",
-  max: "High",
-};
 
-const IMD_LEGEND: LayerLegendConfig = {
-  type: "gradient",
-  label: "Deprivation index",
-  colors: ["#22c55e", "#86efac", "#fde68a", "#f87171", "#ef4444"],
-  min: "Low",
-  max: "High",
-};
-
-const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices, activeLayers = EMPTY_LAYERS, trafficOptions }: MapViewProps) => {
+const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices, activeLayers = EMPTY_LAYERS, trafficOptions, initialCenter, initialZoom, onMapPositionChange, onContextTarget, variant = "default", onStationSelect, highlightedStation, focusedStation, onMapReady, junctionOpportunities, onJunctionSelect, zoneOpportunities, onZoneSelect, mapStyle = "default" }: MapViewProps) => {
   const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION, brandPoints: BRAND_POINTS, interpolateColor, mapCenter, mapZoom, brandAttributes } = useCountry();
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
@@ -159,12 +218,22 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
 
   // Overlay layer refs
   const stationAnalysisRef = useRef<L.LayerGroup | null>(null);
+  const stationMarkerMapRef = useRef<Map<string, L.Marker>>(new Map());
+  const focusCircleRef = useRef<L.Circle | null>(null);
+  const focusedMarkerRef = useRef<L.Marker | null>(null);
+  const junctionLayerRef = useRef<L.LayerGroup | null>(null);
+  const zoneLayerRef = useRef<L.LayerGroup | null>(null);
   const trafficHeatRef = useRef<L.Layer | null>(null);
-  const demoAppliedRef = useRef(false);
-  const demoSavedStylesRef = useRef<Map<any, any>>(new Map());
-  // Stores the active demographic styles per region name so hover handlers can restore them
-  const demoActiveStylesRef = useRef<Map<string, any>>(new Map());
   const brandDimmedRef = useRef(false);
+  const brandAutoHeatRef = useRef<L.Layer | null>(null);
+
+  const handleMsoaClick = useCallback((event: MsoaClickEvent) => {
+    onContextTarget?.({ type: "msoa", ...event });
+  }, [onContextTarget]);
+
+  const deprivationImdLegend = useDeprivationGranularLayer(mapRef, activeLayers.has("demographicImd"), handleMsoaClick);
+  const incomeLegend = useIncomeGranularLayer(mapRef, activeLayers.has("demographicIncome"));
+  const peopleDensityLegend = usePeopleDensityLayer(mapRef, activeLayers.has("peopleDensity"));
 
   const allBrands = useMemo(() => Object.keys(BRANDS), [BRANDS]);
 
@@ -201,11 +270,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
   useEffect(() => {
     if (!containerRef.current || mapRef.current) return;
 
+    const center = initialCenter ?? mapCenter;
+    const zoom = initialZoom ?? mapZoom;
     const map = L.map(containerRef.current, {
       zoomControl: true,
       attributionControl: false,
       preferCanvas: true,
-    }).setView(mapCenter, mapZoom);
+    }).setView(center, zoom);
 
     const urls = getTileUrls(resolvedTheme);
     baseTileRef.current = L.tileLayer(urls.base, {
@@ -220,7 +291,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     }).addTo(map);
 
     map.createPane("pointsPane");
-    map.getPane("pointsPane")!.style.zIndex = "450";
+    map.getPane("pointsPane")!.style.zIndex = "605";
 
     map.createPane("regionInteractionPane");
     map.getPane("regionInteractionPane")!.style.zIndex = "600";
@@ -232,6 +303,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     map.getPane("stationPane")!.style.zIndex = "610";
 
     mapRef.current = map;
+    onMapReady?.(map);
 
     const hideTooltip = () => {
       if (tooltipRef.current) tooltipRef.current.style.display = "none";
@@ -239,20 +311,34 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     map.on("zoomstart", hideTooltip);
     map.on("movestart", hideTooltip);
 
+    const onMoveEnd = () => {
+      if (onMapPositionChange) {
+        const c = map.getCenter();
+        onMapPositionChange([c.lat, c.lng], map.getZoom());
+      }
+    };
+    map.on("moveend", onMoveEnd);
+
+    // Invalidate size when container resizes (needed for flex layouts)
+    const ro = new ResizeObserver(() => map.invalidateSize());
+    if (containerRef.current) ro.observe(containerRef.current);
+
     return () => {
+      ro.disconnect();
       map.off("zoomstart", hideTooltip);
       map.off("movestart", hideTooltip);
+      map.off("moveend", onMoveEnd);
       map.remove();
       mapRef.current = null;
     };
   }, []);
 
-  // Swap tile URLs when theme changes
+  // Swap tile URLs when theme or map style changes
   useEffect(() => {
-    const urls = getTileUrls(resolvedTheme);
+    const urls = getTileUrls(resolvedTheme, mapStyle);
     if (baseTileRef.current) baseTileRef.current.setUrl(urls.base);
     if (labelTileRef.current) labelTileRef.current.setUrl(urls.labels);
-  }, [resolvedTheme]);
+  }, [resolvedTheme, mapStyle]);
 
   // Add/update region layer when topoData loads
   useEffect(() => {
@@ -329,23 +415,13 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
             onEachFeature: (feature: any, lyr: L.Layer) => {
               lyr.on({
                 mouseover: (e: L.LeafletMouseEvent) => {
-                  const demoStyle = demoAppliedRef.current ? demoActiveStylesRef.current.get(feature.properties.name) : null;
-                  if (demoStyle) {
-                    e.target.setStyle({ weight: 2.5, color: "#60a5fa", fillColor: demoStyle.fillColor, fillOpacity: 0.8 });
-                  } else {
-                    e.target.setStyle({ weight: 2.5, color: "#60a5fa" });
-                  }
+                  e.target.setStyle({ weight: 2.5, color: "#60a5fa" });
                   e.target.bringToFront();
-                  if (!demoAppliedRef.current) showTooltip(feature, e);
+                  showTooltip(feature, e);
                 },
-                mousemove: (e: L.LeafletMouseEvent) => { if (!demoAppliedRef.current) moveTooltip(e); },
+                mousemove: (e: L.LeafletMouseEvent) => { moveTooltip(e); },
                 mouseout: (e: L.LeafletMouseEvent) => {
-                  const demoStyle = demoAppliedRef.current ? demoActiveStylesRef.current.get(feature.properties.name) : null;
-                  if (demoStyle) {
-                    e.target.setStyle(demoStyle);
-                  } else {
-                    visualLayer.resetStyle(e.target);
-                  }
+                  visualLayer.resetStyle(e.target);
                   hideTooltip();
                 },
                 click: () => {
@@ -376,27 +452,15 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
             mouseover: (e: L.LeafletMouseEvent) => {
               const vl = visualLayerIndex.get(feature.properties.name);
               if (vl) {
-                // When demographic overlay is active, use its fillColor with a brighter highlight
-                const demoStyle = demoAppliedRef.current ? demoActiveStylesRef.current.get(feature.properties.name) : null;
-                if (demoStyle) {
-                  vl.setStyle({ weight: 2.5, color: "#60a5fa", fillColor: demoStyle.fillColor, fillOpacity: 0.8, dashArray: "" });
-                } else {
-                  vl.setStyle({ weight: 2.5, color: "#60a5fa", fillOpacity: hoverFillOpacity, dashArray: "" });
-                }
+                vl.setStyle({ weight: 2.5, color: "#60a5fa", fillOpacity: hoverFillOpacity, dashArray: "" });
               }
-              if (!demoAppliedRef.current) showTooltip(feature, e);
+              showTooltip(feature, e);
             },
-            mousemove: (e: L.LeafletMouseEvent) => { if (!demoAppliedRef.current) moveTooltip(e); },
+            mousemove: (e: L.LeafletMouseEvent) => { moveTooltip(e); },
             mouseout: () => {
               const vl = visualLayerIndex.get(feature.properties.name);
               if (vl) {
-                // When demographic overlay is active, restore demographic style instead of resetting
-                const demoStyle = demoAppliedRef.current ? demoActiveStylesRef.current.get(feature.properties.name) : null;
-                if (demoStyle) {
-                  vl.setStyle(demoStyle);
-                } else {
-                  visualLayer.resetStyle(vl);
-                }
+                visualLayer.resetStyle(vl);
               }
               hideTooltip();
             },
@@ -421,13 +485,14 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     });
   }, [selectedRegion, display]);
 
-  // Update points
+  // Update points — zoom-adaptive: heatmap at low zoom, individual markers at high zoom
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
 
     Object.values(pointLayersRef.current).forEach((lg) => map.removeLayer(lg));
     pointLayersRef.current = {};
+    if (brandAutoHeatRef.current) { map.removeLayer(brandAutoHeatRef.current); brandAutoHeatRef.current = null; }
 
     if (display === "points" || display === "both") {
       const zoom = map.getZoom();
@@ -439,6 +504,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       );
 
       const allMarkers: L.CircleMarker[] = [];
+      const heatPoints: [number, number][] = [];
 
       sortedBrands.forEach((brand) => {
         const pts = BRAND_POINTS[brand] || [];
@@ -447,6 +513,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         const filtered = vis ? indexedPts.filter(({ i }) => vis.has(i)) : indexedPts;
         const markers = filtered.map(({ p, i: origIdx }) => {
           const attrs = brandAttributes?.[brand]?.[origIdx];
+          heatPoints.push([p[0], p[1]]);
           const marker = L.circleMarker([p[0], p[1]], {
             radius,
             fillColor: BRANDS[brand].color,
@@ -456,38 +523,95 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
             pane: "pointsPane",
           });
           const html = buildPopupHtml(brand, p, attrs);
-          if (display === "choropleth") {
-            marker.bindPopup(html);
-          } else {
+          if (display !== "choropleth") {
             marker.bindTooltip(html, { direction: "top", offset: [0, -8] });
           }
+          marker.on("click", () => {
+            onContextTarget?.({
+              type: "restaurant",
+              lat: p[0],
+              lon: p[1],
+              brand,
+              address: p[2],
+              city: p[3],
+              postcode: p[4],
+              attrs,
+            });
+          });
           allMarkers.push(marker);
           return marker;
         });
-        pointLayersRef.current[brand] = L.layerGroup(markers).addTo(map);
+        pointLayersRef.current[brand] = L.layerGroup(markers);
       });
 
-      const onZoomEnd = () => {
-        const z = map.getZoom();
-        const r = getMarkerRadius(z);
-        const o = brandDimmedRef.current ? 0.18 : getMarkerOpacity(z);
-        allMarkers.forEach((m) => { m.setRadius(r); m.setStyle({ fillOpacity: o }); });
+      // Zoom-adaptive visibility: heatmap at low zoom, markers at high zoom
+      const showMarkersOnMap = (show: boolean) => {
+        Object.values(pointLayersRef.current).forEach((lg) => {
+          if (show) { if (!map.hasLayer(lg)) lg.addTo(map); }
+          else { if (map.hasLayer(lg)) map.removeLayer(lg); }
+        });
       };
-      map.on("zoomend", onZoomEnd);
-      return () => { map.off("zoomend", onZoomEnd); };
+
+      const showAutoHeat = (show: boolean) => {
+        if (show && !brandAutoHeatRef.current && heatPoints.length > 0) {
+          const dimmed = brandDimmedRef.current;
+          const heat = L.heatLayer(heatPoints, {
+            radius: 25, blur: 15, maxZoom: 12, minOpacity: dimmed ? 0.1 : 0.3,
+            gradient: { 0.2: "#1e3a8a", 0.4: "#3b82f6", 0.6: "#22d3ee", 0.8: "#facc15", 1.0: "#ef4444" },
+          });
+          heat.addTo(map);
+          const heatCanvas = (heat as any)._canvas;
+          if (heatCanvas) heatCanvas.style.pointerEvents = "none";
+          brandAutoHeatRef.current = heat;
+        } else if (!show && brandAutoHeatRef.current) {
+          map.removeLayer(brandAutoHeatRef.current);
+          brandAutoHeatRef.current = null;
+        }
+      };
+
+      const updateVisibility = () => {
+        const z = map.getZoom();
+        const useHeat = z < BRAND_HEATMAP_ZOOM;
+
+        showAutoHeat(useHeat);
+        showMarkersOnMap(!useHeat);
+
+        if (!useHeat) {
+          const r = getMarkerRadius(z);
+          const o = brandDimmedRef.current ? 0.18 : getMarkerOpacity(z);
+          allMarkers.forEach((m) => { m.setRadius(r); m.setStyle({ fillOpacity: o }); });
+        }
+      };
+
+      updateVisibility();
+      map.on("zoomend", updateVisibility);
+      return () => {
+        map.off("zoomend", updateVisibility);
+        if (brandAutoHeatRef.current) { map.removeLayer(brandAutoHeatRef.current); brandAutoHeatRef.current = null; }
+      };
     }
   }, [selectedBrands, display, visibleIndices, BRAND_POINTS, BRANDS, brandAttributes]);
 
-  // Dim brand markers when station analysis overlay is active
+  // Dim brand markers (or auto-heatmap) when station analysis overlay is active
   useEffect(() => {
     const dimmed = activeLayers.has("stationAnalysis") && (display === "points" || display === "both");
     brandDimmedRef.current = dimmed;
+    // Dim individual markers (visible at high zoom)
     const targetOpacity = dimmed ? 0.18 : getMarkerOpacity(mapRef.current?.getZoom() ?? 8);
     Object.values(pointLayersRef.current).forEach((lg) => {
       lg.eachLayer((layer) => {
         (layer as L.CircleMarker).setStyle({ fillOpacity: targetOpacity });
       });
     });
+    // Dim auto-heatmap (visible at low zoom) by rebuilding with lower minOpacity
+    if (brandAutoHeatRef.current && mapRef.current) {
+      const map = mapRef.current;
+      map.removeLayer(brandAutoHeatRef.current);
+      brandAutoHeatRef.current = null;
+      // The next zoomend or re-render will rebuild the heatmap with correct opacity
+      // Force a rebuild by dispatching a synthetic zoomend
+      map.fire("zoomend");
+    }
   }, [activeLayers.has("stationAnalysis"), display]);
 
   // Update heatmap layer
@@ -553,78 +677,321 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; }
     if (!activeLayers.has("stationAnalysis")) return;
 
-    const markers: L.Marker[] = [];
     const maxEntries = STATION_DATA[0]?.annualEntries || 1;
     const walkMin = Math.round((0.8 * 1.35) / 5 * 60);
 
-    for (const station of STATION_DATA) {
-      if (station.annualEntries < 500_000) continue;
+    const buildStationMarkers = (threshold: number): L.Marker[] => {
+      const result: L.Marker[] = [];
+      for (const station of STATION_DATA) {
+        if (station.annualEntries < threshold) continue;
 
-      const opp = oppByStation.get(station.name);
-      const ratio = station.annualEntries / maxEntries;
-      const radius = 3 + ratio * 9;
-      const color = opp ? CONFIDENCE_COLORS[opp.confidence] : "#94a3b8";
-      const qsr = station.qsrCount800m;
-      const isTop = opp ? opp.rank <= 10 : false;
+        const opp = oppByStation.get(station.name);
+        const ratio = station.annualEntries / maxEntries;
+        const color = opp ? CONFIDENCE_COLORS[opp.confidence] : "#94a3b8";
+        const qsr = station.qsrCount800m;
+        const isTop = opp ? opp.rank <= 10 : false;
 
-      const brandList = Object.entries(station.brandCounts800m).filter(([, c]) => c > 0).map(([b, c]) => `${b}: ${c}`).join(", ");
-      const absent = Object.entries(station.brandCounts800m).filter(([, c]) => c === 0).map(([b]) => b).join(", ");
+        const brandList = Object.entries(station.brandCounts800m).filter(([, c]) => c > 0).map(([b, c]) => `${b}: ${c}`).join(", ");
+        const absent = Object.entries(station.brandCounts800m).filter(([, c]) => c === 0).map(([b]) => b).join(", ");
 
-      let popup = `<div style="font-size:13px;min-width:260px;max-width:300px;overflow:hidden">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-          <div style="font-weight:700">\u{1F689} ${escapeHtml(station.name)}</div>
-          ${opp ? `<div style="background:${color};color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">${opp.compositeScore.toFixed(0)}</div>` : ""}
-        </div>
-        <div style="color:#94a3b8;font-size:11px;margin-bottom:8px">${escapeHtml(station.region)}${opp ? ` \u00b7 ${opp.signalCount} signals \u00b7 ${opp.confidence} confidence` : ""}</div>
-        <div style="display:flex;gap:12px;margin-bottom:8px">
-          <div style="text-align:center;flex:1;background:rgba(99,102,241,0.1);border-radius:6px;padding:6px 4px">
-            <div style="font-size:18px;font-weight:700;color:#818cf8">${fmtK(station.annualEntries)}</div>
-            <div style="font-size:10px;color:#94a3b8">passengers/yr</div>
+        let popup = `<div style="font-size:13px;min-width:260px;max-width:300px;overflow:hidden">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+            <div style="font-weight:700">\u{1F689} ${escapeHtml(station.name)}</div>
+            ${opp ? `<div style="background:${color};color:white;font-size:10px;font-weight:700;padding:1px 6px;border-radius:4px">${opp.compositeScore.toFixed(0)}</div>` : ""}
           </div>
-          <div style="text-align:center;flex:1;background:${qsr <= 3 ? "rgba(239,68,68,0.1)" : qsr <= 8 ? "rgba(245,158,11,0.1)" : "rgba(34,197,94,0.1)"};border-radius:6px;padding:6px 4px">
-            <div style="font-size:18px;font-weight:700;color:${qsrColor(qsr)}">${qsr}</div>
-            <div style="font-size:10px;color:#94a3b8">QSR ~${walkMin} min walk</div>
+          <div style="color:#94a3b8;font-size:11px;margin-bottom:8px">${escapeHtml(station.region)}${opp ? ` \u00b7 ${opp.signalCount} signals \u00b7 ${opp.confidence} confidence` : ""}</div>
+          <div style="display:flex;gap:12px;margin-bottom:8px">
+            <div style="text-align:center;flex:1;background:rgba(99,102,241,0.1);border-radius:6px;padding:6px 4px">
+              <div style="font-size:18px;font-weight:700;color:#818cf8">${fmtK(station.annualEntries)}</div>
+              <div style="font-size:10px;color:#94a3b8">passengers/yr</div>
+            </div>
+            <div style="text-align:center;flex:1;background:${qsr <= 3 ? "rgba(239,68,68,0.1)" : qsr <= 8 ? "rgba(245,158,11,0.1)" : "rgba(34,197,94,0.1)"};border-radius:6px;padding:6px 4px">
+              <div style="font-size:18px;font-weight:700;color:${qsrColor(qsr)}">${qsr}</div>
+              <div style="font-size:10px;color:#94a3b8">QSR ~${walkMin} min walk</div>
+            </div>
           </div>
-        </div>
-        <div style="margin-bottom:6px;font-size:11px;color:#94a3b8">\u{1F68F} ${station.busStopCount800m} bus stops nearby \u2014 ${station.busStopCount800m >= 40 ? '<span style="color:#22c55e">high pedestrian area</span>' : station.busStopCount800m >= 15 ? "moderate area" : '<span style="color:#ef4444">low pedestrian area</span>'}</div>
-        ${brandList ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:3px">\u2713 Present: ${escapeHtml(brandList)}</div>` : ""}
-        ${absent ? `<div style="font-size:11px;color:#f59e0b;margin-bottom:3px">\u2717 Missing: ${escapeHtml(absent)}</div>` : ""}`;
+          <div style="margin-bottom:6px;font-size:11px;color:#94a3b8">\u{1F68F} ${station.busStopCount800m} bus stops nearby \u2014 ${station.busStopCount800m >= 40 ? '<span style="color:#22c55e">high pedestrian area</span>' : station.busStopCount800m >= 15 ? "moderate area" : '<span style="color:#ef4444">low pedestrian area</span>'}</div>
+          ${brandList ? `<div style="font-size:11px;color:#94a3b8;margin-bottom:3px">\u2713 Present: ${escapeHtml(brandList)}</div>` : ""}
+          ${absent ? `<div style="font-size:11px;color:#f59e0b;margin-bottom:3px">\u2717 Missing: ${escapeHtml(absent)}</div>` : ""}`;
 
-      const sp: SignalProfile = opp?.signalProfile ?? allStationSignals.get(station.name) ?? {
-        footfall: 0, brandGap: 0, demographic: 0, density: 0, pedestrian: 0, roadTraffic: 0, workforceDensity: 0,
-      };
-      const signals = [
-        { l: "Footfall", v: sp.footfall },
-        { l: "Brand gap", v: sp.brandGap },
-        { l: "Demographic", v: sp.demographic },
-        { l: "Density", v: sp.density },
-        { l: "Pedestrian", v: sp.pedestrian },
-        { l: "Road traffic", v: sp.roadTraffic },
-        { l: "Workforce", v: sp.workforceDensity },
-      ];
-      popup += `<div style="margin-top:6px">`;
-      for (const s of signals) {
-        const pct = Math.round(s.v);
-        const bc = pct > 60 ? "#22c55e" : pct > 30 ? "#f59e0b" : "#6b7280";
-        popup += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:70px;flex-shrink:0;font-size:10px;color:#94a3b8">${s.l}</div><div style="flex:1;min-width:0;background:rgba(100,116,139,0.2);border-radius:2px;height:6px;overflow:hidden"><div style="width:${pct}%;background:${bc};border-radius:2px;height:6px"></div></div><div style="width:24px;flex-shrink:0;text-align:right;font-size:10px;color:#94a3b8">${pct}</div></div>`;
+        const sp: SignalProfile = opp?.signalProfile ?? allStationSignals.get(station.name) ?? {
+          footfall: 0, brandGap: 0, demographic: 0, density: 0, pedestrian: 0, roadTraffic: 0, workforceDensity: 0,
+        };
+        const signals = [
+          { l: "Footfall", v: sp.footfall },
+          { l: "Brand gap", v: sp.brandGap },
+          { l: "Demographic", v: sp.demographic },
+          { l: "Density", v: sp.density },
+          { l: "Pedestrian", v: sp.pedestrian },
+          { l: "Road traffic", v: sp.roadTraffic },
+          { l: "Workforce", v: sp.workforceDensity },
+        ];
+        popup += `<div style="margin-top:6px">`;
+        for (const s of signals) {
+          const pct = Math.round(s.v);
+          const bc = pct > 60 ? "#22c55e" : pct > 30 ? "#f59e0b" : "#6b7280";
+          popup += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:2px"><div style="width:70px;flex-shrink:0;font-size:10px;color:#94a3b8">${s.l}</div><div style="flex:1;min-width:0;background:rgba(100,116,139,0.2);border-radius:2px;height:6px;overflow:hidden"><div style="width:${pct}%;background:${bc};border-radius:2px;height:6px"></div></div><div style="width:24px;flex-shrink:0;text-align:right;font-size:10px;color:#94a3b8">${pct}</div></div>`;
+        }
+        popup += `</div>`;
+        popup += `</div>`;
+
+        const size = 16 + ratio * 16;
+        const icon = stationDivIcon(size, color, isTop ? "#ffffff" : "rgba(255,255,255,0.5)", isTop ? 2 : 1);
+        const marker = L.marker([station.lat, station.lon], { icon, pane: "stationPane", interactive: true });
+        marker.bindPopup(popup, { maxWidth: 320 });
+        if (variant === "smart-map" && onStationSelect) {
+          marker.on("click", () => onStationSelect(station.name));
+          (marker as any)._stationName = station.name;
+        } else {
+          marker.on("click", () => onRegionSelect(station.region));
+        }
+        result.push(marker);
       }
-      popup += `</div>`;
-      popup += `</div>`;
+      return result;
+    };
 
-      const size = 16 + ratio * 16;
-      const icon = stationDivIcon(size, color, isTop ? "#ffffff" : "rgba(255,255,255,0.5)", isTop ? 2 : 1);
-      const marker = L.marker([station.lat, station.lon], { icon, pane: "stationPane", interactive: true });
-      marker.bindPopup(popup, { maxWidth: 320 });
-      marker.on("click", () => onRegionSelect(station.region));
-      markers.push(marker);
-    }
+    // Build initial markers with zoom-appropriate threshold
+    let currentThreshold = getStationThreshold(map.getZoom());
+    stationAnalysisRef.current = L.layerGroup(buildStationMarkers(currentThreshold)).addTo(map);
 
-    stationAnalysisRef.current = L.layerGroup(markers).addTo(map);
+    const onZoomEnd = () => {
+      const newThreshold = getStationThreshold(map.getZoom());
+      if (newThreshold === currentThreshold) return;
+      currentThreshold = newThreshold;
+      // Build new layer before removing old one to avoid flicker
+      const newLayer = L.layerGroup(buildStationMarkers(newThreshold)).addTo(map);
+      if (stationAnalysisRef.current) map.removeLayer(stationAnalysisRef.current);
+      stationAnalysisRef.current = newLayer;
+    };
+    map.on("zoomend", onZoomEnd);
 
     return () => {
+      map.off("zoomend", onZoomEnd);
       if (stationAnalysisRef.current) { map.removeLayer(stationAnalysisRef.current); stationAnalysisRef.current = null; }
     };
-  }, [activeLayers.has("stationAnalysis"), oppByStation]);
+  }, [activeLayers.has("stationAnalysis"), oppByStation, variant]);
+
+  // Smart-map: highlight station on card hover
+  useEffect(() => {
+    if (variant !== "smart-map" || !stationAnalysisRef.current) return;
+    stationAnalysisRef.current.eachLayer((layer: any) => {
+      const name = layer._stationName;
+      if (!name) return;
+      const el = layer.getElement?.();
+      if (!el) return;
+      if (name === highlightedStation) {
+        el.style.filter = "drop-shadow(0 0 6px rgba(74,158,255,0.8))";
+        el.style.zIndex = "1000";
+      } else {
+        el.style.filter = "";
+        el.style.zIndex = "";
+      }
+    });
+  }, [highlightedStation, variant]);
+
+  // Smart-map: focus station (800m circle + fade others)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || variant !== "smart-map") return;
+
+    // Clean up previous focus
+    if (focusCircleRef.current) {
+      map.removeLayer(focusCircleRef.current);
+      focusCircleRef.current = null;
+    }
+    if (focusedMarkerRef.current) {
+      map.removeLayer(focusedMarkerRef.current);
+      focusedMarkerRef.current = null;
+    }
+
+    if (!focusedStation) {
+      // Restore opacity on all markers
+      if (stationAnalysisRef.current) {
+        stationAnalysisRef.current.eachLayer((layer: any) => {
+          const el = layer.getElement?.();
+          if (el) el.style.opacity = "1";
+        });
+      }
+      return;
+    }
+
+    // Find the focused station marker and get its position
+    let focusedLatLng: L.LatLng | null = null;
+    let foundInLayer = false;
+    if (stationAnalysisRef.current) {
+      stationAnalysisRef.current.eachLayer((layer: any) => {
+        const el = layer.getElement?.();
+        if (!el) return;
+        if (layer._stationName === focusedStation) {
+          el.style.opacity = "1";
+          focusedLatLng = layer.getLatLng?.();
+          foundInLayer = true;
+        } else {
+          el.style.opacity = "0.3";
+        }
+      });
+    }
+
+    // Fallback: look up station coordinates from STATION_DATA if layer is off
+    const stationRecord = STATION_DATA.find((s) => s.name === focusedStation);
+    if (!focusedLatLng && stationRecord) {
+      focusedLatLng = L.latLng(stationRecord.lat, stationRecord.lon);
+    }
+
+    // If station not visible in layer, add a temporary marker
+    if (focusedLatLng && !foundInLayer && stationRecord) {
+      const icon = stationDivIcon(32, "#4ade80", "#ffffff", 2);
+      focusedMarkerRef.current = L.marker(focusedLatLng, {
+        icon,
+        pane: "stationPane",
+        interactive: true,
+      }).addTo(map);
+      focusedMarkerRef.current.bindPopup(
+        `<div style="font-family:system-ui"><strong>${stationRecord.name}</strong><br/><span style="color:#888">${stationRecord.region}</span></div>`,
+        { maxWidth: 200 },
+      );
+    }
+
+    // Draw 800m radius circle
+    if (focusedLatLng) {
+      focusCircleRef.current = L.circle(focusedLatLng, {
+        radius: 800,
+        color: "#4ade80",
+        weight: 2,
+        dashArray: "6 4",
+        fillColor: "#4ade80",
+        fillOpacity: 0.03,
+        interactive: false,
+      }).addTo(map);
+
+      map.flyTo(focusedLatLng, Math.max(map.getZoom(), 13), { duration: 0.8 });
+    }
+
+    return () => {
+      if (focusCircleRef.current && map) {
+        map.removeLayer(focusCircleRef.current);
+        focusCircleRef.current = null;
+      }
+      if (focusedMarkerRef.current && map) {
+        map.removeLayer(focusedMarkerRef.current);
+        focusedMarkerRef.current = null;
+      }
+    };
+  }, [focusedStation, variant]);
+
+  // Smart-map: junction opportunity markers (diamond shapes) — tied to traffic layer
+  useEffect(() => {
+    const map = mapRef.current
+    const showJunctions = variant === "smart-map" && activeLayers.has("traffic") && junctionOpportunities?.length
+    if (!map || !showJunctions) {
+      if (junctionLayerRef.current) {
+        map?.removeLayer(junctionLayerRef.current)
+        junctionLayerRef.current = null
+      }
+      return
+    }
+
+    if (junctionLayerRef.current) {
+      map.removeLayer(junctionLayerRef.current)
+    }
+
+    const group = L.layerGroup()
+    const topN = junctionOpportunities.slice(0, 200) // limit for performance
+
+    for (const opp of topN) {
+      const size = 12 + (opp.compositeScore / 100) * 16
+      const icon = junctionDivIcon(opp.rank, Math.max(size, opp.rank <= 15 ? 24 : 10), tierColor(opp.compositeScore))
+
+      const popup = `
+        <div style="font-family:system-ui;min-width:200px">
+          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${opp.trafficPoint.roadName}</div>
+          <div style="color:#888;font-size:12px;margin-bottom:8px">${opp.region} · Score: ${opp.compositeScore}</div>
+          <div style="display:flex;gap:8px;font-size:11px;margin-bottom:4px">
+            <span style="color:#6366f1">${Math.round(opp.trafficPoint.aadf / 1000)}K veh/day</span>
+            <span style="color:${opp.driveThruCount === 0 ? '#22c55e' : '#eab308'}">${opp.driveThruCount} drive-thru</span>
+          </div>
+          <div style="font-size:11px;color:#888">${opp.qsrCount} QSR within 1.5km</div>
+        </div>
+      `
+
+      const marker = L.marker([opp.lat, opp.lng], {
+        icon,
+        pane: "stationPane",
+        interactive: true,
+      })
+      marker.bindPopup(popup, { maxWidth: 280 })
+
+      if (onJunctionSelect) {
+        marker.on("click", () => onJunctionSelect(opp.id))
+      }
+
+      group.addLayer(marker)
+    }
+
+    group.addTo(map)
+    junctionLayerRef.current = group
+
+    return () => {
+      if (junctionLayerRef.current && map) {
+        map.removeLayer(junctionLayerRef.current)
+        junctionLayerRef.current = null
+      }
+    }
+  }, [variant, junctionOpportunities, activeLayers.has("traffic")])
+
+  // Zone opportunity markers — square icons, score >= 60
+  useEffect(() => {
+    const map = mapRef.current
+    if (zoneLayerRef.current) {
+      map?.removeLayer(zoneLayerRef.current)
+      zoneLayerRef.current = null
+    }
+    if (!map || !activeLayers.has("zoneOpportunities") || !zoneOpportunities?.length) return
+
+    const group = L.layerGroup()
+    const filtered = zoneOpportunities.filter((z) => z.compositeScore >= 60)
+
+    for (const opp of filtered) {
+      const size = opp.compositeScore >= 80 ? 22 : 16
+      const color = opp.compositeScore >= 80 ? "#06d6a0" : "#06b6d4"
+      const icon = zoneDivIcon(size, color)
+
+      const popup = `
+        <div style="font-family:system-ui;min-width:180px">
+          <div style="font-weight:600;font-size:13px;margin-bottom:4px">${opp.label}</div>
+          <div style="color:#888;font-size:12px;margin-bottom:8px">${opp.region} · Score: ${opp.compositeScore}</div>
+          <div style="display:flex;gap:8px;font-size:11px;margin-bottom:4px">
+            <span style="color:#06b6d4">${Math.round(opp.analysis.workplacePop / 1000)}K workers</span>
+            <span style="color:${opp.brandGaps.length > 0 ? '#22c55e' : '#888'}">${opp.brandGaps.length} brand gaps</span>
+          </div>
+          <div style="font-size:11px;color:#888">${opp.qsrCount} QSR nearby</div>
+        </div>
+      `
+
+      const marker = L.marker([opp.lat, opp.lng], {
+        icon,
+        pane: "stationPane",
+        interactive: true,
+      })
+      marker.bindPopup(popup, { maxWidth: 250 })
+
+      if (onZoneSelect) {
+        marker.on("click", () => onZoneSelect(opp.id))
+      }
+
+      group.addLayer(marker)
+    }
+
+    group.addTo(map)
+    zoneLayerRef.current = group
+
+    return () => {
+      if (zoneLayerRef.current && map) {
+        map.removeLayer(zoneLayerRef.current)
+        zoneLayerRef.current = null
+      }
+    }
+  }, [zoneOpportunities, activeLayers.has("zoneOpportunities")])
 
   // Road traffic flow overlay — heatmap only
   useEffect(() => {
@@ -666,81 +1033,17 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     };
   }, [activeLayers.has("traffic"), trafficOptions?.driveThruOnly]);
 
-  // Opportunity hotspots overlay
-  // Demographic overlay (income / IMD)
-  const hasDemoIncome = activeLayers.has("demographicIncome");
-  const hasDemoImd = activeLayers.has("demographicImd");
-
-  useEffect(() => {
-    const regionLayer = regionLayerRef.current;
-    if (!regionLayer) return;
-
-    // Remove previous demographic styling
-    if (demoAppliedRef.current) {
-      regionLayer.eachLayer((layer: any) => {
-        layer.unbindTooltip();
-        const saved = demoSavedStylesRef.current.get(layer);
-        if (saved) layer.setStyle(saved);
-      });
-      demoSavedStylesRef.current.clear();
-      demoActiveStylesRef.current.clear();
-      demoAppliedRef.current = false;
-    }
-
-    if (!hasDemoIncome && !hasDemoImd) return;
-
-    const mode = hasDemoIncome ? "income" : "imd";
-
-    regionLayer.eachLayer((layer: any) => {
-      const name = layer.feature?.properties?.name;
-      if (!name) return;
-      const demo = DEMO_BY_REGION.get(name);
-      if (!demo) return;
-
-      // Save original style before override
-      const opts = layer.options || {};
-      demoSavedStylesRef.current.set(layer, {
-        fillColor: opts.fillColor ?? "transparent",
-        fillOpacity: opts.fillOpacity ?? 0.05,
-        weight: opts.weight ?? 1.5,
-        color: opts.color ?? "rgba(100, 116, 139, 0.4)",
-        dashArray: opts.dashArray ?? "5 3",
-      });
-
-      layer.unbindTooltip();
-
-      let demoStyle: any;
-      if (mode === "income") {
-        const idx = Math.max(0, Math.min(9, demo.medianIncomeDecile - 1));
-        demoStyle = { fillColor: INCOME_COLORS[idx], fillOpacity: 0.6, weight: 1.5, color: "#3a3f52", dashArray: "" };
-      } else {
-        demoStyle = { fillColor: imdColor(demo.avgImdScore), fillOpacity: 0.6, weight: 1.5, color: "#3a3f52", dashArray: "" };
-      }
-      layer.setStyle(demoStyle);
-      // Store so hover handlers can restore this style on mouseout
-      demoActiveStylesRef.current.set(name, demoStyle);
-
-      layer.bindTooltip(`<div style="font-size:12px">
-        <div style="font-weight:700;margin-bottom:4px">${escapeHtml(name)}</div>
-        <div>Income decile: <strong>${demo.medianIncomeDecile}</strong>/10</div>
-        <div>Deprivation score: <strong>${demo.avgImdScore.toFixed(1)}</strong></div>
-        <div>Employment: <strong>${(demo.avgEmploymentScore * 100).toFixed(1)}%</strong></div>
-        <div style="font-size:10px;color:#94a3b8;margin-top:2px">${demo.lsoaCount.toLocaleString()} ${demo.microAreaLabel} (${demo.deprivationSource})</div>
-      </div>`, { sticky: true });
-    });
-
-    demoAppliedRef.current = true;
-  }, [hasDemoIncome, hasDemoImd, topoData, display]);
-
   // Build overlay legends
   const overlayLegends = useMemo(() => {
     const items: { id: string; config: LayerLegendConfig }[] = [];
     if (activeLayers.has("stationAnalysis")) items.push({ id: "stationAnalysis", config: STATION_ANALYSIS_LEGEND });
+    if (activeLayers.has("zoneOpportunities")) items.push({ id: "zoneOpportunities", config: ZONE_OPPORTUNITIES_LEGEND });
     if (activeLayers.has("traffic")) items.push({ id: "traffic", config: TRAFFIC_LEGEND });
-    if (hasDemoIncome) items.push({ id: "demographicIncome", config: INCOME_LEGEND });
-    if (hasDemoImd) items.push({ id: "demographicImd", config: IMD_LEGEND });
+    if (incomeLegend) items.push({ id: "demographicIncome", config: incomeLegend });
+    if (deprivationImdLegend) items.push({ id: "demographicImd", config: deprivationImdLegend });
+    if (peopleDensityLegend) items.push({ id: "peopleDensity", config: peopleDensityLegend });
     return items;
-  }, [activeLayers, hasDemoIncome, hasDemoImd]);
+  }, [activeLayers, incomeLegend, deprivationImdLegend, peopleDensityLegend]);
 
   // Legend
   const maxMetric = getMaxMetric();

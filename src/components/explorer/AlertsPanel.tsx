@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { Trash2, Plus, Bell, ListChecks, Bot } from "lucide-react"
+import { Trash2, Plus, Bell, ListChecks, Bot, MapPin } from "lucide-react"
 import {
   Sheet,
   SheetContent,
@@ -8,11 +8,9 @@ import {
 } from "@/components/ui/sheet"
 import { useCountry } from "@/contexts/CountryContext"
 import type { AlertRule, AlertEvent, AlertRuleType } from "@/lib/alert-engine"
-import type { AgentInsight, AgentId } from "@/lib/agent-engine"
+import type { AgentInsight } from "@/lib/agent-engine"
 import { AGENT_DEFINITIONS } from "@/lib/agent-engine"
 import { mergeFeedItems, type FeedItem } from "@/lib/feed-types"
-import type { AgentStatus } from "@/hooks/useAgents"
-import AgentsTab from "./AgentsTab"
 
 interface AlertsPanelProps {
   readonly open: boolean
@@ -23,11 +21,13 @@ interface AlertsPanelProps {
   readonly onRemoveRule: (id: string) => void
   readonly onMarkAllRead: () => void
   readonly insights: readonly AgentInsight[]
-  readonly agentStatuses: ReadonlyMap<AgentId, AgentStatus>
   readonly onMarkAllInsightsRead: () => void
+  readonly selectedBrands?: ReadonlySet<string>
+  readonly allBrandsCount?: number
+  readonly onInsightNavigate?: (insight: AgentInsight) => void
 }
 
-type Tab = "events" | "rules" | "agents"
+type Tab = "events" | "rules"
 
 const RULE_TYPES: { value: AlertRuleType; label: string }[] = [
   { value: "threshold", label: "Threshold (count > N)" },
@@ -38,11 +38,12 @@ const RULE_TYPES: { value: AlertRuleType; label: string }[] = [
 const AGENT_COLOR_MAP: Record<string, string> = {
   emerald: "text-emerald-400",
   red: "text-red-400",
-  purple: "text-purple-400",
-  blue: "text-blue-400",
 }
 
-function renderFeedItem(item: FeedItem) {
+function renderFeedItem(
+  item: FeedItem,
+  onInsightNavigate?: (insight: AgentInsight) => void
+) {
   if (item.kind === "alert") {
     const event = item.data
     return (
@@ -94,7 +95,31 @@ function renderFeedItem(item: FeedItem) {
           {insight.timestamp}
         </span>
       </div>
-      <p className="leading-relaxed">{insight.message}</p>
+      <p className="leading-relaxed mb-1.5">{insight.message}</p>
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {insight.region && (
+          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-surface-2 text-[10px] text-muted-foreground border border-border">
+            <MapPin className="w-2.5 h-2.5" />
+            {insight.region}
+          </span>
+        )}
+        {insight.brands.map((brand) => (
+          <span
+            key={brand}
+            className="px-1.5 py-0.5 rounded bg-blue-600/10 text-[10px] text-blue-400 border border-blue-600/20"
+          >
+            {brand}
+          </span>
+        ))}
+        {onInsightNavigate && (
+          <button
+            onClick={() => onInsightNavigate(insight)}
+            className="ml-auto text-[10px] text-blue-400 hover:text-blue-300 transition-colors"
+          >
+            Show on map →
+          </button>
+        )}
+      </div>
     </div>
   )
 }
@@ -108,8 +133,10 @@ const AlertsPanel = ({
   onRemoveRule,
   onMarkAllRead,
   insights,
-  agentStatuses,
   onMarkAllInsightsRead,
+  selectedBrands,
+  allBrandsCount = 6,
+  onInsightNavigate,
 }: AlertsPanelProps) => {
   const { brands, regionCounts } = useCountry()
   const [activeTab, setActiveTab] = useState<Tab>("events")
@@ -145,7 +172,17 @@ const AlertsPanel = ({
 
   const brandNames = Object.keys(brands)
   const regionNames = Object.keys(regionCounts)
-  const feedItems = mergeFeedItems(events, insights)
+
+  // Filter insights by selected brands
+  const isFiltering = selectedBrands != null && selectedBrands.size < allBrandsCount
+  const filteredInsights = isFiltering
+    ? insights.filter((i) =>
+        i.brands.length === 0 || i.brands.some((b) => selectedBrands!.has(b))
+      )
+    : insights
+
+  const feedItems = mergeFeedItems(events, filteredInsights)
+  const filterLabel = isFiltering ? [...selectedBrands!].join(", ") : null
 
   return (
     <Sheet open={open} onOpenChange={(o) => { if (!o) onClose() }}>
@@ -158,7 +195,6 @@ const AlertsPanel = ({
         <div className="flex gap-1 mt-3 mb-4">
           {([
             { key: "events" as Tab, icon: Bell, label: "Events" },
-            { key: "agents" as Tab, icon: Bot, label: "Agents" },
             { key: "rules" as Tab, icon: ListChecks, label: "Rules" },
           ]).map(({ key, icon: Icon, label }) => (
             <button
@@ -176,6 +212,13 @@ const AlertsPanel = ({
           ))}
         </div>
 
+        {filterLabel && (
+          <div className="mb-3 px-2.5 py-1.5 rounded-md bg-blue-600/10 border border-blue-600/30 text-[11px] text-blue-400">
+            Filtered by: <strong>{filterLabel}</strong>
+            <span className="text-muted-foreground ml-1">({filteredInsights.length} insights)</span>
+          </div>
+        )}
+
         {activeTab === "events" && (
           <div>
             {feedItems.length > 0 && (
@@ -192,14 +235,10 @@ const AlertsPanel = ({
               </p>
             ) : (
               <div className="space-y-2">
-                {feedItems.map((item) => renderFeedItem(item))}
+                {feedItems.map((item) => renderFeedItem(item, onInsightNavigate))}
               </div>
             )}
           </div>
-        )}
-
-        {activeTab === "agents" && (
-          <AgentsTab insights={insights} agentStatuses={agentStatuses} />
         )}
 
         {activeTab === "rules" && (

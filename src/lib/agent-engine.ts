@@ -1,18 +1,12 @@
 // Pure agent analysis engine — no side effects
-// Three named agents that generate demo insights from snapshot data
+// Two temporal agents that generate insights from snapshot deltas
 
 import type { Snapshot } from "./alert-engine"
-import {
-  computeAllRegionScores,
-  DEFAULT_WEIGHTS,
-  type RegionScore,
-} from "./expansion-scoring"
 import type { CountryConfig } from "@/contexts/CountryContext"
-import { runDeliveryIntel } from "./delivery-intel-agent"
 
 // --- Types ---
 
-export type AgentId = "market-monitor" | "competitor-tracker" | "expansion-scout" | "delivery-intel"
+export type AgentId = "market-monitor" | "competitor-tracker"
 
 export type MarketInsightType =
   | "rapid-growth"
@@ -27,21 +21,7 @@ export type CompetitorInsightType =
   | "flanking-threat"
   | "brand-gap"
 
-export type ExpansionInsightType =
-  | "hot-opportunity"
-  | "growth-opportunity"
-  | "tier-upgrade"
-  | "multi-brand-opportunity"
-  | "saturated-region-warning"
-
-export type DeliveryInsightType =
-  | "platform-coverage-gap"
-  | "delivery-desert"
-  | "drive-thru-advantage"
-  | "own-delivery-dominance"
-  | "click-collect-leader"
-
-export type InsightType = MarketInsightType | CompetitorInsightType | ExpansionInsightType | DeliveryInsightType
+export type InsightType = MarketInsightType | CompetitorInsightType
 
 export interface AgentInsight {
   readonly id: string
@@ -53,6 +33,7 @@ export interface AgentInsight {
   readonly read: boolean
   readonly brands: readonly string[]
   readonly region: string
+  readonly location?: { readonly lat: number; readonly lng: number }
 }
 
 export interface AgentDefinition {
@@ -60,7 +41,6 @@ export interface AgentDefinition {
   readonly name: string
   readonly tagline: string
   readonly color: string
-  readonly static?: boolean
   readonly run: (
     prevSnapshot: Snapshot,
     nextSnapshot: Snapshot,
@@ -78,8 +58,6 @@ const COMPETITIVE_ENTRY_RIVAL_MIN = 30
 const FLANKING_GROWTH_MIN = 2
 const ESTABLISHED_BRAND_MIN_LOCATIONS = 50
 const MARKET_LEADER_TOP_REGIONS = 3
-const GROWTH_OPPORTUNITY_MIN_SCORE = 45
-const GROWTH_OPPORTUNITY_MAX_PER_BRAND = 3
 
 // --- Helpers ---
 
@@ -378,167 +356,6 @@ function runCompetitorTracker(
   return insights
 }
 
-// --- Expansion Scout Agent ---
-
-function runExpansionScout(
-  prevSnapshot: Snapshot,
-  nextSnapshot: Snapshot,
-  countryConfig: CountryConfig,
-  monthDate: string
-): readonly AgentInsight[] {
-  const insights: AgentInsight[] = []
-  const brands = Object.keys(countryConfig.brands)
-
-  // Build scoring data from the current snapshot
-  const snapshotScoringData = buildScoringDataFromSnapshot(nextSnapshot, countryConfig)
-  const prevScoringData = buildScoringDataFromSnapshot(prevSnapshot, countryConfig)
-
-  // Cache scores per brand to avoid redundant computation
-  const scoresByBrand = new Map<string, readonly RegionScore[]>()
-  // Track hot regions per brand for multi-brand-opportunity (immutable accumulation)
-  let hotRegions: Record<string, readonly string[]> = {}
-
-  for (const brand of brands) {
-    const scores = computeAllRegionScores(brand, DEFAULT_WEIGHTS, snapshotScoringData)
-    const prevScores = computeAllRegionScores(brand, DEFAULT_WEIGHTS, prevScoringData)
-    scoresByBrand.set(brand, scores)
-    const prevTierMap = new Map(prevScores.map((s) => [s.region, s.tier]))
-
-    for (const score of scores) {
-      // hot-opportunity: region scores Hot tier
-      if (score.tier === "Hot") {
-        insights.push(
-          makeInsight(
-            "expansion-scout",
-            "hot-opportunity",
-            `${score.region} is a Hot opportunity for ${brand} (score: ${score.composite})`,
-            monthDate,
-            2,
-            [brand],
-            score.region
-          )
-        )
-
-        hotRegions = {
-          ...hotRegions,
-          [score.region]: [...(hotRegions[score.region] || []), brand],
-        }
-      }
-
-      // tier-upgrade: region moved from Warm→Hot between snapshots
-      const prevTier = prevTierMap.get(score.region)
-      if (prevTier && prevTier === "Warm" && score.tier === "Hot") {
-        insights.push(
-          makeInsight(
-            "expansion-scout",
-            "tier-upgrade",
-            `${score.region} upgraded from Warm to Hot for ${brand} (score: ${score.composite})`,
-            monthDate,
-            1,
-            [brand],
-            score.region
-          )
-        )
-      }
-    }
-
-    // growth-opportunity: top-scoring non-Hot regions above minimum threshold
-    const nonHotAboveMin = scores
-      .filter((s) => s.tier !== "Hot" && s.composite >= GROWTH_OPPORTUNITY_MIN_SCORE)
-      .slice(0, GROWTH_OPPORTUNITY_MAX_PER_BRAND)
-
-    for (const score of nonHotAboveMin) {
-      insights.push(
-        makeInsight(
-          "expansion-scout",
-          "growth-opportunity",
-          `${score.region} shows growth potential for ${brand} (score: ${score.composite}, ${score.tier})`,
-          monthDate,
-          3,
-          [brand],
-          score.region
-        )
-      )
-    }
-  }
-
-  // multi-brand-opportunity: region is Hot for 2+ brands
-  for (const [region, regionBrands] of Object.entries(hotRegions)) {
-    if (regionBrands.length >= 2) {
-      insights.push(
-        makeInsight(
-          "expansion-scout",
-          "multi-brand-opportunity",
-          `${region} is a Hot opportunity for ${regionBrands.length} brands: ${regionBrands.join(", ")}`,
-          monthDate,
-          1,
-          regionBrands,
-          region
-        )
-      )
-    }
-  }
-
-  // saturated-region-warning: all brands score Cold in a region (reuses cached scores)
-  const regionNames = Object.keys(countryConfig.regionCounts)
-  for (const region of regionNames) {
-    const allCold = brands.every((brand) => {
-      const scores = scoresByBrand.get(brand)
-      if (!scores) return true
-      const regionScore = scores.find((s) => s.region === region)
-      return regionScore ? regionScore.tier === "Cold" : true
-    })
-    if (allCold) {
-      insights.push(
-        makeInsight(
-          "expansion-scout",
-          "saturated-region-warning",
-          `${region} scores Cold for all brands — market may be saturated`,
-          monthDate,
-          4,
-          [],
-          region
-        )
-      )
-    }
-  }
-
-  return insights
-}
-
-interface SnapshotScoringData {
-  readonly brands: Record<string, { color: string; icon: string }>
-  readonly regionCounts: Record<string, Record<string, number>>
-  readonly population: Record<string, number>
-}
-
-/** Build ScoringData compatible with expansion-scoring from a snapshot */
-function buildScoringDataFromSnapshot(
-  snapshot: Snapshot,
-  countryConfig: CountryConfig
-): SnapshotScoringData {
-  const regionCounts: Record<string, Record<string, number>> = {}
-
-  for (const [region, brands] of Object.entries(snapshot)) {
-    const counts: Record<string, number> = { ...brands }
-    counts.total = Object.values(brands).reduce((sum, c) => sum + c, 0)
-    regionCounts[region] = counts
-  }
-
-  // Include regions from config that might not be in snapshot yet
-  for (const region of Object.keys(countryConfig.population)) {
-    if (!regionCounts[region]) {
-      regionCounts[region] = { total: 0 }
-    }
-  }
-
-  return {
-    brands: countryConfig.brands,
-    regionCounts,
-    population: countryConfig.population,
-  }
-}
-
 // --- Agent Definitions ---
 
 export const AGENT_DEFINITIONS: readonly AgentDefinition[] = [
@@ -556,21 +373,6 @@ export const AGENT_DEFINITIONS: readonly AgentDefinition[] = [
     color: "red",
     run: runCompetitorTracker,
   },
-  {
-    id: "expansion-scout",
-    name: "Expansion Scout",
-    tagline: "Discovers expansion opportunities",
-    color: "purple",
-    run: runExpansionScout,
-  },
-  {
-    id: "delivery-intel",
-    name: "Delivery Intel",
-    tagline: "Analyzes delivery platform coverage and format mix",
-    color: "blue",
-    static: true,
-    run: (_prev, _next, countryConfig) => runDeliveryIntel(countryConfig),
-  },
 ]
 
 // --- Top-level runner ---
@@ -584,7 +386,6 @@ export function runAllAgents(
   const allInsights: AgentInsight[] = []
 
   for (const agent of AGENT_DEFINITIONS) {
-    if (agent.static) continue // static agents run once on mount, not per tick
     const agentInsights = agent.run(prevSnapshot, nextSnapshot, countryConfig, monthDate)
     allInsights.push(...agentInsights)
   }

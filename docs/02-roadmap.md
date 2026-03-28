@@ -106,13 +106,11 @@
    - 4 фактора: Penetration Gap (35%), Competitor Presence (25%), Population Score (20%), Density Headroom (20%)
    - 5 тиров: Hot → Warm → Moderate → Cool → Cold
    - Настраиваемые веса через UI-слайдеры
-2. **Agent Team** — четыре AI-агента, генерирующих инсайты из данных
+2. **Agent Team** — два AI-агента, генерирующих инсайты из данных
    - Market Monitor: rapid-growth, regional-leader-shift, market-acceleration, stagnant-market
    - Competitor Tracker: brand-dominance, competitive-entry, flanking-threat, brand-gap
-   - Expansion Scout: hot-opportunity, tier-upgrade, multi-brand-opportunity, saturated-region-warning
-   - Delivery Intel: platform-coverage-gap, delivery-desert, drive-thru-advantage, own-delivery-dominance, click-collect-leader
-   - Итого 17 типов инсайтов с приоритизацией (1-5)
-3. **Unified Feed** — алерты и AI-инсайты в единой панели (AlertsPanel с 3 табами: Events / Agents / Rules)
+   - Итого 8 типов инсайтов с приоритизацией (1-5)
+3. **Unified Feed** — алерты и AI-инсайты в единой панели (AlertsPanel с 2 табами: Events / Rules)
 4. **Light/Dark тема** — переключение с определением системных предпочтений, автоматическая смена тайлов CartoCDN
 
 ---

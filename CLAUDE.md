@@ -28,7 +28,7 @@ Run a single test file: `npx vitest run src/test/agent-engine.test.ts`
 
 ### Key subsystems
 
-- **Agent system** (`src/lib/*-agent.ts`, `src/lib/agent-engine.ts`) — Custom-built AI agent orchestration for market analysis. Agents: human-flow, market-fit, opportunity-engine, delivery-intel.
+- **Agent system** (`src/lib/agent-engine.ts`) — Two temporal agents that generate insights from snapshot deltas. Agents: market-monitor, competitor-tracker. 8 insight types total (4 per agent). Rule-based, no LLM.
 - **Multi-anchor opportunity scoring** — Three anchor types scored and ranked in a unified list:
   - **Station scoring** (`src/lib/opportunity-scoring.ts`) — 7-signal weighted model for 517 train stations. Signals: footfall, brand gap, demographic, density, pedestrian, road traffic, workforce.
   - **Junction scoring** (`src/lib/junction-scoring.ts`) — 4-signal drive-thru focused model for 5,000 high-traffic road segments (50K+ AADF). Signals: traffic volume, drive-thru gap, QSR presence, demographic fit. Diamond markers on map, tied to "Road traffic flow" layer toggle.
@@ -65,7 +65,7 @@ Run a single test file: `npx vitest run src/test/agent-engine.test.ts`
 
 ## UI Structure
 
-- **Header tabs**: Insights (default) | Map & Insights | Map | Table | Radar
+- **Header tabs**: Map & Insights (default) | Table
 - **Sidebar sections**: Brand Groups → Brands → Data Layers → Map Style → Country Summary
 - **Map Style** merges "Shade regions by" (Total/Per 100k/Market share) + "Display mode" (Regions/Points/Both/Heatmap) in one section
 - **No jargon**: "Choropleth" → "Regions", "AADF" → "vehicles/day", "IMD" → "Deprivation index", "Per 100k pop." → "Per 100k people"
@@ -87,7 +87,7 @@ Run a single test file: `npx vitest run src/test/agent-engine.test.ts`
 - shadcn-ui components live in `src/components/ui/` — do not modify them directly, use the CLI to update
 - Map overlays use `mapRef.current` (not state) in useEffect — state-based map instance caused reactivity issues with the orchestrator pattern
 - Layer toggle deps use `activeLayers.has("id")` (boolean primitive) for reliable effect triggering
-- Default Explorer view is `"opportunities"` (set in `readViewFromHash()` fallback). Smart Map is `"smart-map"` — added as new tab alongside existing ones for safe rollback
+- Default Explorer view is `"smart-map"` (set in `readViewFromHash()` fallback). Only two views remain: `"smart-map"` and `"table"`
 - Income level layer is a separate `L.geoJSON` layer (like deprivation). Salary is LA-level: all MSOAs in the same Local Authority share the same value, creating visible "blocks" at LA boundaries. Range £23K–£35K is narrow because it's industry-mix weighted average, not individual salaries
 - Deprivation index layer is a separate `L.geoJSON` layer (not region recoloring). TopoJSON fetched lazily from `public/`, converted via `topojson.feature()`. Click handler uses `clickRef` (useRef) to avoid re-creating 7.2K polygons on callback identity change
 - People density heatmap lazy-loads `workplace-pop-data.ts` (182 KB) via dynamic `import()` — code-split, not in initial bundle. Workplace weight = 0.6 to balance against station footfall (3x fewer points but higher intensity)

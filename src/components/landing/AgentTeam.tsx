@@ -4,10 +4,10 @@ const AgentTeam = () => (
   <section id="agents" className="max-w-[1100px] mx-auto py-24 px-6">
     <div className="text-center mb-16">
       <h2 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
-        Automated competitive analysis — always running
+        Real-time competitive intelligence
       </h2>
       <p className="text-lg text-muted-foreground max-w-[600px] mx-auto">
-        Each agent specializes in a different competitive question. They run every time you explore the timeline — surfacing what the data means, not just what it shows.
+        Two specialized agents track competitive dynamics as you explore the timeline — surfacing market shifts, growth trends, and competitive threats the moment they happen.
       </p>
     </div>
 

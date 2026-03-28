@@ -17,7 +17,15 @@ export function useResolvedTheme(): "light" | "dark" {
   return useSyncExternalStore(subscribe, getSnapshot)
 }
 
-export function getTileUrls(theme: "light" | "dark") {
+export type MapStyle = "default" | "satellite"
+
+export function getTileUrls(theme: "light" | "dark", style: MapStyle = "default") {
+  if (style === "satellite") {
+    return {
+      base: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+      labels: `https://{s}.basemaps.cartocdn.com/light_only_labels/{z}/{x}/{y}@2x.png`,
+    }
+  }
   const variant = theme === "dark" ? "dark" : "light"
   return {
     base: `https://{s}.basemaps.cartocdn.com/${variant}_nolabels/{z}/{x}/{y}@2x.png`,
