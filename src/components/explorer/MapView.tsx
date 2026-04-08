@@ -23,6 +23,7 @@ type Display = "choropleth" | "points" | "both" | "heatmap";
 
 interface MapViewProps {
   selectedBrands: Set<string>;
+  perspectiveBrand?: string | null;
   metric: Metric;
   display: Display;
   selectedRegion: string | null;
@@ -203,7 +204,7 @@ const TRAFFIC_LEGEND: LayerLegendConfig = {
 
 
 
-const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices, activeLayers = EMPTY_LAYERS, trafficOptions, initialCenter, initialZoom, onMapPositionChange, onContextTarget, variant = "default", onStationSelect, highlightedStation, focusedStation, onMapReady, junctionOpportunities, onJunctionSelect, zoneOpportunities, onZoneSelect, mapStyle = "default" }: MapViewProps) => {
+const MapView = ({ selectedBrands, perspectiveBrand = null, metric, display, selectedRegion, onRegionSelect, topoData, visibleIndices, activeLayers = EMPTY_LAYERS, trafficOptions, initialCenter, initialZoom, onMapPositionChange, onContextTarget, variant = "default", onStationSelect, highlightedStation, focusedStation, onMapReady, junctionOpportunities, onJunctionSelect, zoneOpportunities, onZoneSelect, mapStyle = "default" }: MapViewProps) => {
   const { brands: BRANDS, regionCounts: REGION_COUNTS, population: POPULATION, brandPoints: BRAND_POINTS, interpolateColor, mapCenter, mapZoom, brandAttributes } = useCountry();
   const mapRef = useRef<L.Map | null>(null);
   const regionLayerRef = useRef<L.GeoJSON | null>(null);
@@ -231,8 +232,8 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
     onContextTarget?.({ type: "msoa", ...event });
   }, [onContextTarget]);
 
-  const deprivationImdLegend = useDeprivationGranularLayer(mapRef, activeLayers.has("demographicImd"), handleMsoaClick);
-  const incomeLegend = useIncomeGranularLayer(mapRef, activeLayers.has("demographicIncome"));
+  const deprivationImdLegend = useDeprivationGranularLayer(mapRef, activeLayers.has("demographicImd"), handleMsoaClick, mapStyle);
+  const incomeLegend = useIncomeGranularLayer(mapRef, activeLayers.has("demographicIncome"), mapStyle);
   const peopleDensityLegend = usePeopleDensityLayer(mapRef, activeLayers.has("peopleDensity"));
 
   const allBrands = useMemo(() => Object.keys(BRANDS), [BRANDS]);
@@ -499,14 +500,28 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
       const radius = getMarkerRadius(zoom);
       const opacity = brandDimmedRef.current ? 0.18 : getMarkerOpacity(zoom);
 
+      // Perspective-brand markers get a size boost + thicker ring so the user
+      // can visually spot their focus brand against competitors.
+      const perspectiveRadius = radius + 3;
+      const perspectiveOpacity = Math.min(1, opacity + 0.1);
+
       const sortedBrands = [...selectedBrands].sort(
         (a, b) => (BRAND_POINTS[a] || []).length - (BRAND_POINTS[b] || []).length
       );
 
+      // Ensure the perspective brand renders LAST (on top of competitors).
+      if (perspectiveBrand && sortedBrands.includes(perspectiveBrand)) {
+        const idx = sortedBrands.indexOf(perspectiveBrand);
+        sortedBrands.splice(idx, 1);
+        sortedBrands.push(perspectiveBrand);
+      }
+
       const allMarkers: L.CircleMarker[] = [];
+      const perspectiveMarkers: L.CircleMarker[] = [];
       const heatPoints: [number, number][] = [];
 
       sortedBrands.forEach((brand) => {
+        const isPerspective = brand === perspectiveBrand;
         const pts = BRAND_POINTS[brand] || [];
         const vis = visibleIndices?.[brand];
         const indexedPts = pts.map((p, i) => ({ p, i }));
@@ -515,11 +530,11 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
           const attrs = brandAttributes?.[brand]?.[origIdx];
           heatPoints.push([p[0], p[1]]);
           const marker = L.circleMarker([p[0], p[1]], {
-            radius,
+            radius: isPerspective ? perspectiveRadius : radius,
             fillColor: BRANDS[brand].color,
-            color: "rgba(15,17,30,0.5)",
-            weight: 1,
-            fillOpacity: opacity,
+            color: isPerspective ? "#ffffff" : "rgba(15,17,30,0.5)",
+            weight: isPerspective ? 2.5 : 1,
+            fillOpacity: isPerspective ? perspectiveOpacity : opacity,
             pane: "pointsPane",
           });
           const html = buildPopupHtml(brand, p, attrs);
@@ -539,6 +554,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
             });
           });
           allMarkers.push(marker);
+          if (isPerspective) perspectiveMarkers.push(marker);
           return marker;
         });
         pointLayersRef.current[brand] = L.layerGroup(markers);
@@ -579,7 +595,18 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         if (!useHeat) {
           const r = getMarkerRadius(z);
           const o = brandDimmedRef.current ? 0.18 : getMarkerOpacity(z);
-          allMarkers.forEach((m) => { m.setRadius(r); m.setStyle({ fillOpacity: o }); });
+          const pr = r + 3;
+          const po = Math.min(1, o + 0.1);
+          const perspectiveSet = new Set(perspectiveMarkers);
+          allMarkers.forEach((m) => {
+            if (perspectiveSet.has(m)) {
+              m.setRadius(pr);
+              m.setStyle({ fillOpacity: po });
+            } else {
+              m.setRadius(r);
+              m.setStyle({ fillOpacity: o });
+            }
+          });
         }
       };
 
@@ -590,7 +617,7 @@ const MapView = ({ selectedBrands, metric, display, selectedRegion, onRegionSele
         if (brandAutoHeatRef.current) { map.removeLayer(brandAutoHeatRef.current); brandAutoHeatRef.current = null; }
       };
     }
-  }, [selectedBrands, display, visibleIndices, BRAND_POINTS, BRANDS, brandAttributes]);
+  }, [selectedBrands, perspectiveBrand, display, visibleIndices, BRAND_POINTS, BRANDS, brandAttributes]);
 
   // Dim brand markers (or auto-heatmap) when station analysis overlay is active
   useEffect(() => {

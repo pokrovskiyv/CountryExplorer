@@ -13,6 +13,8 @@ type Display = "choropleth" | "points" | "both" | "heatmap"
 
 interface SmartMapViewProps {
   selectedBrands: Set<string>
+  perspectiveBrand: string | null
+  onPerspectiveChange: (brand: string | null) => void
   metric: Metric
   display: Display
   selectedRegion: string | null
@@ -32,6 +34,8 @@ interface SmartMapViewProps {
 
 const SmartMapView = ({
   selectedBrands,
+  perspectiveBrand,
+  onPerspectiveChange,
   metric,
   display,
   selectedRegion,
@@ -84,7 +88,7 @@ const SmartMapView = ({
     brandLabel,
     anchorFilter,
     setAnchorFilter,
-  } = useMultiAnchorOpportunities(selectedBrands)
+  } = useMultiAnchorOpportunities(perspectiveBrand)
 
   const clearPreview = useCallback(() => {
     if (previewCircleRef.current) {
@@ -372,6 +376,7 @@ const SmartMapView = ({
         />
         <MapView
           selectedBrands={selectedBrands}
+          perspectiveBrand={perspectiveBrand}
           metric={metric}
           display={display}
           selectedRegion={selectedRegion}
@@ -407,6 +412,8 @@ const SmartMapView = ({
         brandIntelligence={brandIntelligence}
         brandLabel={brandLabel}
         selectedBrands={selectedBrands}
+        perspectiveBrand={perspectiveBrand}
+        onPerspectiveChange={onPerspectiveChange}
         anchorFilter={anchorFilter}
         onAnchorFilterChange={setAnchorFilter}
         onOpportunitySelect={handleOpportunitySelect}

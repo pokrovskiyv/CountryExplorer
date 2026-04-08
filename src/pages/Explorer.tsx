@@ -50,6 +50,7 @@ const Explorer = () => {
     activeLayers, setActiveLayers,
     trafficOptions, setTrafficOptions,
     selectedBrands, setSelectedBrands,
+    perspectiveBrand, setPerspectiveBrand,
     savedMapPosition,
   } = useExplorerPersistence({ allBrandKeys: Object.keys(countryConfig.brands) });
   const [selectedRegion, setSelectedRegion] = useState<string | null>(null);
@@ -87,6 +88,21 @@ const Explorer = () => {
     setSelectedBrands(new Set(brands));
   }, []);
 
+  // Change perspective brand. When a brand becomes the perspective, guarantee it is
+  // also visible on the map so users never end up in a confusing "focused on Nandos
+  // but Nandos is hidden" state.
+  const handlePerspectiveChange = useCallback((brand: string | null) => {
+    setPerspectiveBrand(brand);
+    if (brand) {
+      setSelectedBrands((prev) => {
+        if (prev.has(brand)) return prev;
+        const next = new Set(prev);
+        next.add(brand);
+        return next;
+      });
+    }
+  }, []);
+
   const handleInsightNavigate = useCallback((insight: { region: string }) => {
     setActiveView("smart-map");
     setAlertsPanelOpen(false);
@@ -118,6 +134,7 @@ const Explorer = () => {
     const config = COUNTRY_CONFIGS[code];
     setActiveCountry(code);
     setSelectedBrands(new Set(Object.keys(config.brands)));
+    setPerspectiveBrand(null);
     setSelectedRegion(null);
     clearSavedMapPosition();
   }, []);
@@ -267,6 +284,8 @@ const Explorer = () => {
               {activeView === "smart-map" ? (
                 <SmartMapView
                   selectedBrands={selectedBrands}
+                  perspectiveBrand={perspectiveBrand}
+                  onPerspectiveChange={handlePerspectiveChange}
                   metric={metric}
                   display={display}
                   selectedRegion={selectedRegion}

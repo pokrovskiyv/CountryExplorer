@@ -24,14 +24,22 @@ export interface MultiAnchorResult {
 }
 
 export function useMultiAnchorOpportunities(
-  selectedBrands: ReadonlySet<string>,
+  perspectiveBrand: string | null = null,
 ): MultiAnchorResult {
   const { brands, brandPoints } = useCountry()
   const allBrands = useMemo(() => Object.keys(brands), [brands])
   const [anchorFilter, setAnchorFilter] = useState<AnchorType | "all">("all")
 
+  // Effective filter for scoring/display: if a perspective brand is set, focus on it;
+  // otherwise show opportunities across ALL brands. The sidebar's `selectedBrands`
+  // controls only map marker visibility — it no longer affects Intelligence filtering.
+  const effectiveFilterSet = useMemo(() => {
+    if (perspectiveBrand) return new Set([perspectiveBrand])
+    return new Set(allBrands)
+  }, [perspectiveBrand, allBrands])
+
   // Station opportunities (reuse existing hook for narrative, KPIs, brand intel)
-  const stationResult = useOpportunities(selectedBrands)
+  const stationResult = useOpportunities(effectiveFilterSet)
 
   const stationOpps = useMemo(
     () => stationResult.stations.map(toStationOpportunityV2),
@@ -44,16 +52,12 @@ export function useMultiAnchorOpportunities(
     [allBrands.join(",")],
   )
 
-  const junctionOpps = useMemo(() => {
-    if (selectedBrands.size === 0) return []
-    return allJunctions
-  }, [allJunctions, selectedBrands.size])
+  const junctionOpps = useMemo(() => allJunctions, [allJunctions])
 
   // MSOA zone opportunities — computed once and memoized
   const msoaOpps = useMemo(() => {
-    if (selectedBrands.size === 0) return []
     return computeMsoaOpportunities(allBrands, brandPoints)
-  }, [allBrands.join(","), brandPoints, selectedBrands.size])
+  }, [allBrands.join(","), brandPoints])
 
   // Junction narrative
   const junctionNarrative = useMemo((): readonly NarrativeSentence[] => {

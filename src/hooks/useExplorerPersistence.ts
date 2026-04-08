@@ -12,6 +12,7 @@ interface PersistedFilters {
   readonly activeLayers: readonly LayerId[]
   readonly trafficOptions: TrafficLayerOptions
   readonly selectedBrands: readonly string[]
+  readonly perspectiveBrand: string | null
 }
 
 export interface PersistedMapPosition {
@@ -49,12 +50,18 @@ function loadFilters(allBrandKeys: readonly string[]): PersistedFilters | null {
       ? parsed.selectedBrands.filter((b) => brandSet.has(b))
       : []
 
+    const perspectiveBrand =
+      typeof parsed.perspectiveBrand === "string" && brandSet.has(parsed.perspectiveBrand)
+        ? parsed.perspectiveBrand
+        : null
+
     return {
       metric,
       display,
       activeLayers,
       trafficOptions: parsed.trafficOptions ?? {},
       selectedBrands: selectedBrands.length > 0 ? selectedBrands : [...allBrandKeys],
+      perspectiveBrand,
     }
   } catch {
     return null
@@ -126,6 +133,9 @@ export function useExplorerPersistence(defaults: PersistenceDefaults) {
   const [selectedBrands, setSelectedBrands] = useState<Set<string>>(
     () => new Set(saved?.selectedBrands ?? defaults.allBrandKeys)
   )
+  const [perspectiveBrand, setPerspectiveBrand] = useState<string | null>(
+    saved?.perspectiveBrand ?? null
+  )
 
   const savedMapPosition = loadMapPosition()
 
@@ -139,12 +149,13 @@ export function useExplorerPersistence(defaults: PersistenceDefaults) {
       activeLayers: Array.from(activeLayers),
       trafficOptions,
       selectedBrands: Array.from(selectedBrands),
+      perspectiveBrand,
     }
     const serialized = JSON.stringify(data)
     if (serialized === lastSavedRef.current) return
     lastSavedRef.current = serialized
     saveFilters(data)
-  }, [metric, display, activeLayers, trafficOptions, selectedBrands])
+  }, [metric, display, activeLayers, trafficOptions, selectedBrands, perspectiveBrand])
 
   return {
     metric,
@@ -157,6 +168,8 @@ export function useExplorerPersistence(defaults: PersistenceDefaults) {
     setTrafficOptions,
     selectedBrands,
     setSelectedBrands,
+    perspectiveBrand,
+    setPerspectiveBrand,
     savedMapPosition,
   }
 }

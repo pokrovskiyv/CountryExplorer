@@ -3,6 +3,7 @@ import { ChevronDown } from "lucide-react"
 import type { OpportunityKpis, NarrativeSentence } from "@/lib/opportunity-scoring"
 import type { BrandIntelligence } from "@/hooks/useOpportunities"
 import type { Opportunity, AnchorType } from "@/lib/multi-anchor-types"
+import { useCountry } from "@/contexts/CountryContext"
 import OpportunityCard from "./OpportunityCard"
 
 interface OverviewStateProps {
@@ -12,7 +13,8 @@ interface OverviewStateProps {
   narrative: readonly NarrativeSentence[]
   brandIntelligence: BrandIntelligence | null
   brandLabel: string
-  selectedBrands: Set<string>
+  perspectiveBrand: string | null
+  onPerspectiveChange: (brand: string | null) => void
   anchorFilter: AnchorType | "all"
   onAnchorFilterChange: (filter: AnchorType | "all") => void
   onOpportunitySelect: (id: string) => void
@@ -46,7 +48,8 @@ const OverviewState = ({
   narrative,
   brandIntelligence,
   brandLabel,
-  selectedBrands,
+  perspectiveBrand,
+  onPerspectiveChange,
   anchorFilter,
   onAnchorFilterChange,
   onOpportunitySelect,
@@ -54,11 +57,13 @@ const OverviewState = ({
   highlightedStation,
   onHighlightStation,
 }: OverviewStateProps) => {
+  const { brands: BRANDS } = useCountry()
+  const allBrandKeys = useMemo(() => Object.keys(BRANDS), [BRANDS])
   const [showAll, setShowAll] = useState(false)
   const [briefOpen, setBriefOpen] = useState(false)
   const [tierFilter, setTierFilter] = useState<TierFilter>("all")
   const [sortBy, setSortBy] = useState<SortBy>("score")
-  const selectedBrand = selectedBrands.size === 1 ? [...selectedBrands][0] : undefined
+  const selectedBrand = perspectiveBrand ?? undefined
 
   const filteredAndSorted = useMemo(() => {
     let result = [...opportunities]
@@ -138,6 +143,39 @@ const OverviewState = ({
         )}
       </div>
 
+      {/* Perspective picker — which brand are we evaluating opportunities for? */}
+      <div className="px-4 py-2 border-b border-border bg-surface-1/30 flex items-center gap-2">
+        <span className="text-[10px] text-muted-foreground uppercase tracking-wider">From perspective of</span>
+        {perspectiveBrand && (
+          <span
+            className="w-2.5 h-2.5 rounded-full shrink-0"
+            style={{ background: BRANDS[perspectiveBrand]?.color ?? "transparent" }}
+          />
+        )}
+        <select
+          value={perspectiveBrand ?? ""}
+          onChange={(e) => onPerspectiveChange(e.target.value === "" ? null : e.target.value)}
+          className="text-[11px] bg-surface-1 border border-border rounded px-2 py-0.5 text-foreground font-medium"
+        >
+          <option value="">All brands</option>
+          {allBrandKeys.map((b) => (
+            <option key={b} value={b}>{b}</option>
+          ))}
+        </select>
+        {perspectiveBrand && (
+          <button
+            onClick={() => onPerspectiveChange(null)}
+            className="text-[10px] text-muted-foreground hover:text-foreground underline"
+            aria-label="Clear perspective"
+          >
+            clear
+          </button>
+        )}
+        <span className="ml-auto text-[9px] text-muted-foreground/70 italic hidden sm:inline">
+          {perspectiveBrand ? "competitors stay on the map" : ""}
+        </span>
+      </div>
+
       {/* Anchor type filter */}
       <div className="px-3 py-2 border-b border-border flex items-center gap-1.5 flex-wrap">
         {ANCHOR_CHIPS.map((chip) => (
@@ -185,12 +223,6 @@ const OverviewState = ({
           </select>
         </div>
       </div>
-
-      {selectedBrands.size > 1 && (
-        <div className="px-4 py-1.5 text-[10px] text-muted-foreground bg-surface-1/50 border-b border-border">
-          Select a single brand for focused recommendations
-        </div>
-      )}
 
       {/* Opportunity list */}
       <div className="flex-1 overflow-y-auto px-3 py-2">

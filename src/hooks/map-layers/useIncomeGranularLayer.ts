@@ -3,16 +3,26 @@ import L from "leaflet"
 import * as topojson from "topojson-client"
 import type { LayerLegendConfig } from "./types"
 
-/** Salary gradient: cool blue (low) → warm green (high) */
-function salaryColor(salary: number): string {
-  // Range: ~£23K to ~£35K
-  const min = 23000
-  const max = 35000
-  const t = Math.max(0, Math.min(1, (salary - min) / (max - min)))
-  const r = Math.round(124 - t * 90)
-  const g = Math.round(58 + t * 139)
-  const b = Math.round(237 - t * 143)
-  return `rgb(${r},${g},${b})`
+/** Decile-based palette: purple (lowest 10%) → green (highest 10%).
+ * 10 discrete buckets so equal-ranked MSOAs get the same shade regardless
+ * of absolute £ value — gives much better visual contrast than interpolating
+ * a narrow £23K-£35K range. */
+const DECILE_COLORS: readonly string[] = [
+  "#6d28d9", // 1 — lowest decile
+  "#7c3aed",
+  "#6366f1",
+  "#4f46e5",
+  "#3b82f6",
+  "#06b6d4",
+  "#10b981",
+  "#22c55e",
+  "#16a34a",
+  "#15803d", // 10 — highest decile
+]
+
+function decileColor(decile: number): string {
+  const idx = Math.max(1, Math.min(10, Math.round(decile))) - 1
+  return DECILE_COLORS[idx]
 }
 
 function formatSalary(salary: number): string {
@@ -21,10 +31,10 @@ function formatSalary(salary: number): string {
 
 const LEGEND: LayerLegendConfig = {
   type: "gradient",
-  label: "Estimated income (annual)",
-  colors: ["#7c3aed", "#6366f1", "#3b82f6", "#22c55e", "#16a34a"],
-  min: "£23K",
-  max: "£35K",
+  label: "Income (by decile)",
+  colors: ["#6d28d9", "#4f46e5", "#3b82f6", "#10b981", "#15803d"],
+  min: "Low income",
+  max: "High income",
 }
 
 const TOPO_URL = "/msoa-salary-topo.json"
@@ -40,6 +50,7 @@ interface MsoaSalaryProperties {
 export function useIncomeGranularLayer(
   mapRef: React.MutableRefObject<L.Map | null>,
   isActive: boolean,
+  mapStyle: "default" | "satellite" = "default",
 ): LayerLegendConfig | null {
   const layerRef = useRef<L.GeoJSON | null>(null)
   const [geojsonData, setGeojsonData] = useState<GeoJSON.FeatureCollection | null>(null)
@@ -72,17 +83,18 @@ export function useIncomeGranularLayer(
       map.getPane("demographicIncomePane")!.style.zIndex = "435"
     }
 
+    const isSatellite = mapStyle === "satellite"
     const layer = L.geoJSON(geojsonData, {
       pane: "demographicIncomePane",
       style: (feature) => {
         const props = feature?.properties as MsoaSalaryProperties | undefined
-        const salary = props?.sal ?? 28000
+        const decile = props?.d ?? 5
         return {
-          fillColor: salaryColor(salary),
-          fillOpacity: 0.65,
-          weight: 0.5,
-          color: "#64748b",
-          opacity: 0.4,
+          fillColor: decileColor(decile),
+          fillOpacity: isSatellite ? 0.8 : 0.65,
+          weight: 1,
+          color: isSatellite ? "#ffffff" : "#64748b",
+          opacity: isSatellite ? 0.5 : 0.4,
         }
       },
       onEachFeature: (feature, featureLayer) => {
@@ -90,8 +102,8 @@ export function useIncomeGranularLayer(
         featureLayer.bindTooltip(
           `<div style="font-size:12px">` +
           `<div style="font-weight:600;margin-bottom:2px">${props.n}</div>` +
-          `<div>Estimated income: <strong>${formatSalary(props.sal)}</strong>/year</div>` +
-          `<div>Decile: <strong>${props.d}</strong>/10</div>` +
+          `<div>Income decile: <strong>${props.d}</strong>/10</div>` +
+          `<div>Estimated: <strong>${formatSalary(props.sal)}</strong>/year</div>` +
           `<div style="font-size:10px;color:#94a3b8;margin-top:2px">${props.la} (BRES + ASHE 2023)</div>` +
           `</div>`,
           { sticky: true },
@@ -107,7 +119,7 @@ export function useIncomeGranularLayer(
         layerRef.current = null
       }
     }
-  }, [isActive, geojsonData])
+  }, [isActive, geojsonData, mapStyle])
 
   return isActive ? LEGEND : null
 }

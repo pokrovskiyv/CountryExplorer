@@ -125,7 +125,7 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
           Display mode
         </div>
-        <div className="flex gap-1 flex-wrap mb-3">
+        <div className={`flex gap-1 flex-wrap ${(display === "points" || display === "both") ? "mb-1" : "mb-3"}`}>
           {([["choropleth", "Regions"], ["points", "Points"], ["both", "Both"], ["heatmap", "Heatmap"]] as const).map(([d, label]) => (
             <button
               key={d}
@@ -140,6 +140,11 @@ const Sidebar = ({ selectedBrands, onToggleBrand, metric, onMetricChange, displa
             </button>
           ))}
         </div>
+        {(display === "points" || display === "both") && (
+          <div className="text-[10px] text-muted-foreground/70 italic mb-3 px-0.5">
+            Shown as density heatmap when zoomed out
+          </div>
+        )}
 
         <div className="text-[10px] uppercase tracking-wider text-muted-foreground/60 font-medium mb-1.5">
           Base map

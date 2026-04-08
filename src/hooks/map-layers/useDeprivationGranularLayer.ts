@@ -42,6 +42,7 @@ export function useDeprivationGranularLayer(
   mapRef: React.MutableRefObject<L.Map | null>,
   isActive: boolean,
   onFeatureClick?: (event: MsoaClickEvent) => void,
+  mapStyle: "default" | "satellite" = "default",
 ): LayerLegendConfig | null {
   const layerRef = useRef<L.GeoJSON | null>(null)
   const clickRef = useRef(onFeatureClick)
@@ -76,6 +77,7 @@ export function useDeprivationGranularLayer(
       map.getPane("demographicImdPane")!.style.zIndex = "435"
     }
 
+    const isSatellite = mapStyle === "satellite"
     const layer = L.geoJSON(geojsonData, {
       pane: "demographicImdPane",
       style: (feature) => {
@@ -83,10 +85,10 @@ export function useDeprivationGranularLayer(
         const score = props?.s ?? 50
         return {
           fillColor: deprivationColor(score),
-          fillOpacity: 0.65,
-          weight: 0.5,
-          color: "#64748b",
-          opacity: 0.4,
+          fillOpacity: isSatellite ? 0.8 : 0.65,
+          weight: 1,
+          color: isSatellite ? "#ffffff" : "#64748b",
+          opacity: isSatellite ? 0.5 : 0.4,
         }
       },
       onEachFeature: (feature, featureLayer) => {
@@ -121,7 +123,7 @@ export function useDeprivationGranularLayer(
         layerRef.current = null
       }
     }
-  }, [isActive, geojsonData])
+  }, [isActive, geojsonData, mapStyle])
 
   return isActive ? LEGEND : null
 }

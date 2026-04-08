@@ -22,6 +22,8 @@ interface IntelligencePanelProps {
   brandIntelligence: BrandIntelligence | null
   brandLabel: string
   selectedBrands: Set<string>
+  perspectiveBrand: string | null
+  onPerspectiveChange: (brand: string | null) => void
   anchorFilter: AnchorType | "all"
   onAnchorFilterChange: (filter: AnchorType | "all") => void
   onOpportunitySelect: (id: string) => void
@@ -50,6 +52,8 @@ const IntelligencePanel = ({
   brandIntelligence,
   brandLabel,
   selectedBrands,
+  perspectiveBrand,
+  onPerspectiveChange,
   anchorFilter,
   onAnchorFilterChange,
   onOpportunitySelect,
@@ -85,7 +89,8 @@ const IntelligencePanel = ({
           narrative={narrative}
           brandIntelligence={brandIntelligence}
           brandLabel={brandLabel}
-          selectedBrands={selectedBrands}
+          perspectiveBrand={perspectiveBrand}
+          onPerspectiveChange={onPerspectiveChange}
           anchorFilter={anchorFilter}
           onAnchorFilterChange={onAnchorFilterChange}
           onOpportunitySelect={onOpportunitySelect}
