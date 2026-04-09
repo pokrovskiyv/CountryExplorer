@@ -229,7 +229,9 @@ export function computeMsoaOpportunities(
       lat,
       lng: lon,
       region,
-      label: `Zone ${region} #${i + 1}`,
+      label: fp.nearestStation
+        ? `Workplace area near ${fp.nearestStation.name}`
+        : `Workplace zone, ${region}`,
       msoaCode,
       signalProfile: {
         brandGap: brandGaps.length > 0 ? Math.round((brandGaps.length / allBrands.length) * 100) : 0,
