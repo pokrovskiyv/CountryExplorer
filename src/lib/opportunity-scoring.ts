@@ -546,8 +546,12 @@ function analyzeStation(
   const ratio = station.annualEntries / Math.max(station.qsrCount800m, 1)
   const nationalAvgRatio = 5_000_000 // approximate
   if (ratio > nationalAvgRatio * 1.5) {
+    const multiplier = Math.round(ratio / nationalAvgRatio)
+    const text = station.qsrCount800m === 0
+      ? `Zero QSR within 800m — any first entrant absorbs ~${multiplier}x the typical passenger load`
+      : `${station.qsrCount800m} QSR${station.qsrCount800m === 1 ? "" : "s"} serving ${fmt(station.annualEntries)} passengers — each absorbs ~${multiplier}x the typical load`
     supplyGapEvidence.push({
-      text: `${fmt(Math.round(ratio))} passengers per QSR — ${Math.round(ratio / nationalAvgRatio)}x above typical`,
+      text,
       source: "ORR + Getplace",
       sourceType: "derived",
       verifiable: true,

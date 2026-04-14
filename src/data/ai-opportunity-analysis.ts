@@ -9,7 +9,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   "Canada Water": {
     actionTier: "act-now",
     recommendation: "Canada Water is the highest-scoring opportunity in this batch and a rare case of extreme demand-supply imbalance in inner London. With 18.7M passengers/year yet only 1 QSR within 800m, the station sits in the bottom 19th percentile for QSR density while ranking in the top 4% nationally for footfall. Secure a site now before the ongoing Canada Water Masterplan regeneration drives rents higher and competitors move in.",
-    whyThisStation: "An extraordinary 18.7M passengers per QSR ratio (4x the national average) in a rapidly regenerating Jubilee line zone, with 40K workers within 1.5km generating consistent weekday lunchtime demand.",
+    whyThisStation: "A rare supply desert — 18.7M passengers funnelled through just 1 QSR, roughly 4x the typical load per outlet — in a rapidly regenerating Jubilee line zone, with 40K workers within 1.5km generating consistent weekday lunchtime demand.",
     brandRecommendations: {
       Subway: "Value-affinity brand is a strong match for income decile 4, and with zero Subway presence against only 1 competitor, this is a textbook first-mover opportunity for a grab-and-go format serving 18.7M annual passengers.",
       KFC: "Value positioning aligns well with income decile 4; the absence of any fried chicken offer near a station processing 18.7M passengers/year represents a significant gap, especially given the 40K-strong local workforce seeking quick lunch options.",
@@ -69,7 +69,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   },
   "London Liverpool Street": {
     actionTier: "act-now",
-    recommendation: "London Liverpool Street processes a staggering 98.0M passengers/year, making it the busiest station in this batch and one of the busiest in the UK. Despite 11 existing QSR outlets and 146K workers within 1.5km, Papa Johns and Domino's remain absent. The 8.9M passengers per QSR ratio (2x above typical) confirms that even with 11 competitors, this market remains underserved. The City of London location provides exceptional weekday density.",
+    recommendation: "London Liverpool Street processes a staggering 98.0M passengers/year, making it the busiest station in this batch and one of the busiest in the UK. Despite 11 existing QSR outlets and 146K workers within 1.5km, Papa Johns and Domino's remain absent. Even with 11 competitors, the passenger load per outlet is roughly 2x the national typical — confirming the market remains materially underserved. The City of London location provides exceptional weekday density.",
     whyThisStation: "The highest absolute footfall in the batch at 98.0M passengers/year with 146K nearby workers, yet two major delivery and value brands have no presence despite 11 competitors proving robust QSR economics.",
     brandRecommendations: {
       PapaJohns: "Value-affinity brand is well-matched to income decile 4; the absence of Papa Johns near the UK's busiest commuter terminus with 146K workers within 1.5km and 112 bus stops (top 6% for pedestrian activity) represents a major untapped lunchtime and evening delivery market.",
@@ -79,7 +79,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   },
   "London Waterloo": {
     actionTier: "act-now",
-    recommendation: "London Waterloo processes 70.4M passengers/year with 110K workers within 1.5km, serving as the primary terminus for South West Trains commuters. With 6 existing QSR outlets but Papa Johns and Domino's absent, the pizza delivery category is entirely unrepresented. At 11.7M passengers per QSR (2x above typical), the station remains meaningfully underserved despite its current competitor presence.",
+    recommendation: "London Waterloo processes 70.4M passengers/year with 110K workers within 1.5km, serving as the primary terminus for South West Trains commuters. With 6 existing QSR outlets but Papa Johns and Domino's absent, the pizza delivery category is entirely unrepresented. 6 outlets absorbing 70.4M passengers means roughly 2x the typical load per QSR — the station remains meaningfully underserved despite its current competitor presence.",
     whyThisStation: "The busiest terminus in the UK by passenger volume at 70.4M/year, with 110K nearby workers and the South Bank cultural district generating evening and weekend traffic that extends demand beyond the typical commuter peak.",
     brandRecommendations: {
       PapaJohns: "Value-affinity brand matches income decile 4; the complete absence of pizza delivery near 70.4M annual passengers and a 110K-strong workforce is notable, with 87 bus stops (top 10% for pedestrian activity) confirming strong walk-in potential.",
@@ -125,8 +125,8 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   },
   "London Euston": {
     actionTier: "act-now",
-    recommendation: "London Euston processes 40.2M passengers annually (top 2%) yet hosts only 3 QSR outlets — yielding an extraordinary 13.4M passengers per QSR, approximately 3x the typical ratio. This dramatic supply-demand imbalance, combined with 130K workers within 1.5km and 82 bus stops feeding pedestrian traffic, represents one of the most underserved major terminus locations in the country.",
-    whyThisStation: "The 13.4M passengers-per-QSR ratio is the highest in this batch, signalling acute undersupply at a major intercity terminus with 130K surrounding workers.",
+    recommendation: "London Euston processes 40.2M passengers annually (top 2%) yet hosts only 3 QSR outlets — approximately 3x the typical passenger load per outlet. This dramatic supply-demand imbalance, combined with 130K workers within 1.5km and 82 bus stops feeding pedestrian traffic, represents one of the most underserved major terminus locations in the country.",
+    whyThisStation: "40.2M passengers against just 3 QSRs is the widest supply-demand gap in this batch, signalling acute undersupply at a major intercity terminus with 130K surrounding workers.",
     brandRecommendations: {
       KFC: "Excellent fit: as a value brand entering an income decile 4 catchment with 40.2M passengers and only Subway, McDonald's, and Nando's currently present, KFC would fill a distinct fried chicken segment with no direct competitor on-site.",
       PapaJohns: "Strong fit: value-aligned brand entering a dramatically underserved terminus; the 3-competitor environment means minimal cannibalisation risk with 40.2M annual passengers generating substantial delivery and grab-and-go demand.",
@@ -136,11 +136,11 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   },
   "London St Pancras International": {
     actionTier: "act-now",
-    recommendation: "St Pancras International handles 38.8M passengers annually (top 2%) including high-spending international Eurostar travellers, with 72K workers in the surrounding Knowledge Quarter. At 7.8M passengers per QSR (2x above typical), the location is meaningfully undersupplied despite 5 existing QSR operators confirming strong commercial demand.",
+    recommendation: "St Pancras International handles 38.8M passengers annually (top 2%) including high-spending international Eurostar travellers, with 72K workers in the surrounding Knowledge Quarter. 5 QSRs absorbing 38.8M passengers is roughly 2x the typical load per outlet — the location is meaningfully undersupplied despite its existing operators confirming strong commercial demand.",
     whyThisStation: "International terminus status combined with 38.8M annual passengers and the Knowledge Quarter's 72K workforce creates a dual domestic-international demand profile that few UK stations can match.",
     brandRecommendations: {
       PapaJohns: "Strong fit: income decile 4 aligns with value positioning, and the 38.8M passenger base — including international travellers — provides a captive audience with extended dwell times at this terminus, ideal for delivery and dine-in pizza formats.",
-      Dominos: "Solid opportunity: neutral affinity against decile 4 is workable given the 7.8M passengers-per-QSR undersupply ratio; a delivery hub near St Pancras could serve both station traffic and the dense residential areas of King's Cross and Camden.",
+      Dominos: "Solid opportunity: neutral affinity against decile 4 is workable given the ~2x typical load already absorbed by the 5 incumbent QSRs; a delivery hub near St Pancras could serve both station traffic and the dense residential areas of King's Cross and Camden.",
     },
     riskMitigation: "Station retail leases at St Pancras command premium rates and Network Rail controls tenant selection tightly. Consider a secondary frontage on Pancras Road or Midland Road to capture the 72K worker lunchtime demand at lower occupancy costs.",
   },
@@ -204,8 +204,8 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   },
   "Highbury and Islington": {
     actionTier: "act-now",
-    recommendation: "Highbury and Islington delivers 24.0M annual passengers (top 4%) with 62K workers within 1.5km, yet hosts only 3 QSR outlets — producing an 8.0M passengers-per-QSR ratio that is 2x above typical. Three brands are absent (PapaJohns, Dominos, Nando's), making this one of the most undersupplied locations relative to its footfall in this batch.",
-    whyThisStation: "The 8.0M passengers-per-QSR ratio signals acute undersupply at a high-footfall interchange where only Subway, McDonald's, and KFC currently operate, leaving clear whitespace for pizza and casual dining formats.",
+    recommendation: "Highbury and Islington delivers 24.0M annual passengers (top 4%) with 62K workers within 1.5km, yet hosts only 3 QSR outlets — roughly twice the typical passenger load per outlet. Three brands are absent (PapaJohns, Dominos, Nando's), making this one of the most undersupplied locations relative to its footfall in this batch.",
+    whyThisStation: "24.0M passengers funnelled through just 3 QSRs signals acute undersupply at a high-footfall interchange where only Subway, McDonald's, and KFC currently operate, leaving clear whitespace for pizza and casual dining formats.",
     brandRecommendations: {
       PapaJohns: "Strong fit: value brand entering a decile 4 catchment with 24.0M passengers and only 3 competitors; the 62K workforce provides weekday base demand, while Islington's dense residential population supports evening delivery volumes.",
       Dominos: "Viable entry: neutral affinity against decile 4 is workable given the 2x undersupply ratio; with no road traffic data available, a Dominos here should focus on station-adjacent walk-in and residential delivery rather than drive-through formats.",
@@ -442,7 +442,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   "Willesden Junction": {
     actionTier: "evaluate",
     recommendation: "Willesden Junction processes 7.0M passengers annually with only 2 QSR within 800m -- a significant supply constraint at this traffic level. 4 of 6 tracked brands are absent despite the station sitting in the top 13% nationally for footfall. 26K workers within 1.5km provide a lunchtime demand layer that extends beyond peak commuter hours. 38 bus stops within 800m confirm local transit connectivity. The absence of road traffic data limits the drive-thru angle, but the station-centric opportunity is clear: high footfall, low QSR density, and a value-aligned income decile 4 catchment.",
-    whyThisStation: "Rank #41 nationally -- 7.0M passengers against only 2 QSR creates a 3.5M passengers-per-QSR ratio, QSR density 41% below average for stations of similar traffic, 4 brand gaps in a value-aligned demographic.",
+    whyThisStation: "Rank #41 nationally -- 7.0M passengers against only 2 QSRs, with QSR density 41% below average for stations of similar traffic, 4 brand gaps in a value-aligned demographic.",
     brandRecommendations: {
       PapaJohns: "Strongest fit (score 66). Value brand aligns directly with income decile 4 demographics -- core target audience. Delivery-first model leverages the 38 bus stops indicating dense local population. Delivery to Harlesden and Kensal Green captures both residential and commuter ordering patterns.",
       McDonalds: "Good fit (score 62). Neutral affinity performs consistently across income brackets. 7.0M annual passengers provide the high-throughput environment where McDonald's format excels. 26K workers within 1.5km add a reliable lunchtime revenue stream.",
@@ -471,7 +471,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
     brandRecommendations: {
       Subway: "Strong fit (score 66). Value brand aligns directly with income decile 4 demographics -- core target audience. Quick-service format suits the constrained supply environment. 40K workers within 1.5km provide a robust lunchtime customer base beyond commuter peaks.",
       PapaJohns: "Strong fit (score 66). Value brand aligns directly with income decile 4 demographics. Delivery-first model covers the surrounding residential catchment -- 32 bus stops indicate dense local population. Delivery to Gospel Oak and Kentish Town captures both residential and commuter ordering.",
-      McDonalds: "Good fit (score 62). Neutral affinity performs consistently across income brackets. 3.5M annual passengers against only 1 existing QSR creates a 3.5M passengers-per-QSR ratio -- well above the national typical.",
+      McDonalds: "Good fit (score 62). Neutral affinity performs consistently across income brackets. 3.5M annual passengers against only 1 existing QSR means each outlet absorbs well above the national typical load.",
       Dominos: "Good fit (score 62). Neutral affinity performs consistently across income brackets. Delivery-first model leverages the surrounding residential density. 32 bus stops confirm the catchment supports a delivery-radius approach.",
       Nandos: "Monitor (score 51). Premium brand in decile 4 area -- demographic headwind may limit average transaction values and repeat visit frequency.",
     },
@@ -2970,7 +2970,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   "Abbey Wood": {
     actionTier: "monitor",
     recommendation: "Abbey Wood scores 46 with 11.9M passengers (top 7%) but zero QSR within 800m — a 100% undersupply. The Elizabeth Line has transformed footfall. However, the score sits below evaluate threshold, likely because the brand-gap signal did not fire (no competitors to gap against).",
-    whyThisStation: "11.9M annual passengers is exceptional — 93rd percentile nationally. The complete QSR absence is striking and may reflect a station still catching up to post-Elizabeth Line demand. 42 bus stops (51st percentile) and 7K workers are moderate. Income decile 3 suits value brands. The 11.9M-per-QSR metric flags this as serving 2x the typical passenger load per outlet.",
+    whyThisStation: "11.9M annual passengers is exceptional — 93rd percentile nationally. The complete QSR absence is striking and may reflect a station still catching up to post-Elizabeth Line demand. 42 bus stops (51st percentile) and 7K workers are moderate. Income decile 3 suits value brands. With zero QSRs serving 11.9M passengers, any first entrant would absorb roughly 2x the typical per-outlet load.",
     brandRecommendations: {
       Subway: "Score 46. Value affinity matches decile 3. Zero QSR present means first-mover advantage in a station handling 11.9M passengers. Compact format suits station-adjacent retail.",
       KFC: "Score 46. Value affinity suits decile 3. High footfall supports the format. Density and pedestrian signals both fired.",
@@ -3340,7 +3340,7 @@ export const AI_STATION_ANALYSIS: Readonly<Record<string, StationAIAnalysis>> = 
   "Stansted Airport": {
     actionTier: "monitor",
     recommendation: "Stansted Airport scores 44 with 10.1M passengers (top 9%) but zero QSR within 800m — 100% undersupply. All 6 brands absent. However, data completeness is only 71% (no road data, no workplace data), and the airport context is fundamentally different from town-centre stations.",
-    whyThisStation: "10.1M passengers is exceptional — 91st percentile nationally. Zero QSR within 800m creates a 100% undersupply metric with 10.1M passengers per QSR (2x above typical). 48 bus stops (62nd percentile) confirm transport connectivity. Income decile 7 (airport area) is affluent. However, airport stations have captive-audience dynamics — airside retail is not captured, and the 800m radius around the station may fall within airport-controlled land.",
+    whyThisStation: "10.1M passengers is exceptional — 91st percentile nationally. Zero QSR within 800m is a complete supply gap — any first entrant would absorb roughly 2x the typical per-outlet load. 48 bus stops (62nd percentile) confirm transport connectivity. Income decile 7 (airport area) is affluent. However, airport stations have captive-audience dynamics — airside retail is not captured, and the 800m radius around the station may fall within airport-controlled land.",
     brandRecommendations: {
       Nandos: "Score 44. Premium affinity matches decile 7. Airport travellers skew toward premium-casual dining. All 6 brands absent — first-mover advantage if the location is viable. Density and pedestrian signals fired.",
       McDonalds: "Score 41. Neutral affinity against decile 7. Airport McDonalds are proven globally. The brand's operational model suits high-throughput transit locations.",
